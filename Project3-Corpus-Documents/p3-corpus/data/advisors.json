@@ -1,0 +1,26 @@
+[
+  {
+    "advisor_id": "adv-01",
+    "name": "Jordan Ellis",
+    "email": "jordan.ellis@advisors.example.com",
+    "verify_in_ses": true
+  },
+  {
+    "advisor_id": "adv-02",
+    "name": "Priya Raman",
+    "email": "priya.raman@advisors.example.com",
+    "verify_in_ses": true
+  },
+  {
+    "advisor_id": "adv-03",
+    "name": "Marcus Webb",
+    "email": "marcus.webb@advisors.example.com",
+    "verify_in_ses": true
+  },
+  {
+    "advisor_id": "adv-04",
+    "name": "Dana Okafor",
+    "email": "dana.okafor@advisors.example.com",
+    "verify_in_ses": false
+  }
+]

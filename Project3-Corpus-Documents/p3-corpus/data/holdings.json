@@ -1,0 +1,218 @@
+[
+  {
+    "user_id": "u-001",
+    "account_number": "6029376336",
+    "account_type": "Individual",
+    "ticker": "LFTS1",
+    "shares": 407.095,
+    "market_value_usd": 48200.05,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-001",
+    "account_number": "6029376336",
+    "account_type": "Individual",
+    "ticker": "LFIN1",
+    "shares": 684.564,
+    "market_value_usd": 15300.01,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-001",
+    "account_number": "6029376336",
+    "account_type": "Individual",
+    "ticker": "LFMM1",
+    "shares": 6200.0,
+    "market_value_usd": 6200.0,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-001",
+    "account_number": "5960695108",
+    "account_type": "Roth IRA",
+    "ticker": "LFR45",
+    "shares": 820.645,
+    "market_value_usd": 31799.99,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-001",
+    "account_number": "5960695108",
+    "account_type": "Roth IRA",
+    "ticker": "LFTB1",
+    "shares": 957.23,
+    "market_value_usd": 9400.0,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-002",
+    "account_number": "7793381504",
+    "account_type": "Traditional IRA",
+    "ticker": "LFBA1",
+    "shares": 1534.884,
+    "market_value_usd": 72600.01,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-002",
+    "account_number": "7793381504",
+    "account_type": "Traditional IRA",
+    "ticker": "LFTP4",
+    "shares": 741.803,
+    "market_value_usd": 18099.99,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-002",
+    "account_number": "7793381504",
+    "account_type": "Traditional IRA",
+    "ticker": "LFST2",
+    "shares": 575.356,
+    "market_value_usd": 11299.99,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-003",
+    "account_number": "6695618834",
+    "account_type": "Individual",
+    "ticker": "LFGR5",
+    "shares": 199.095,
+    "market_value_usd": 26400.0,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-003",
+    "account_number": "6695618834",
+    "account_type": "Individual",
+    "ticker": "LFEM3",
+    "shares": 297.162,
+    "market_value_usd": 8900.0,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-003",
+    "account_number": "6695618834",
+    "account_type": "Individual",
+    "ticker": "LFHC1",
+    "shares": 85.885,
+    "market_value_usd": 12199.96,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-003",
+    "account_number": "5295126777",
+    "account_type": "Roth IRA",
+    "ticker": "LFR30",
+    "shares": 727.564,
+    "market_value_usd": 22700.0,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-005",
+    "account_number": "6890455285",
+    "account_type": "Joint",
+    "ticker": "LFLC2",
+    "shares": 878.835,
+    "market_value_usd": 84499.99,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-005",
+    "account_number": "6890455285",
+    "account_type": "Joint",
+    "ticker": "LFVL6",
+    "shares": 386.107,
+    "market_value_usd": 23900.02,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-005",
+    "account_number": "6890455285",
+    "account_type": "Joint",
+    "ticker": "LFDM2",
+    "shares": 1058.824,
+    "market_value_usd": 19800.01,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-005",
+    "account_number": "6890455285",
+    "account_type": "Joint",
+    "ticker": "LFMU5",
+    "shares": 3762.557,
+    "market_value_usd": 41200.0,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-005",
+    "account_number": "5991009532",
+    "account_type": "Traditional IRA",
+    "ticker": "LFDV7",
+    "shares": 766.355,
+    "market_value_usd": 28699.99,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-005",
+    "account_number": "5991009532",
+    "account_type": "Traditional IRA",
+    "ticker": "LFIT3",
+    "shares": 774.194,
+    "market_value_usd": 15600.01,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-006",
+    "account_number": "9222460042",
+    "account_type": "Individual",
+    "ticker": "LFSC4",
+    "shares": 235.152,
+    "market_value_usd": 9700.02,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-006",
+    "account_number": "9222460042",
+    "account_type": "Individual",
+    "ticker": "LFRE2",
+    "shares": 194.245,
+    "market_value_usd": 5400.01,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-006",
+    "account_number": "9222460042",
+    "account_type": "Individual",
+    "ticker": "LFCA2",
+    "shares": 848.665,
+    "market_value_usd": 14300.01,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-007",
+    "account_number": "4680165941",
+    "account_type": "Individual",
+    "ticker": "LFEQ8",
+    "shares": 859.41,
+    "market_value_usd": 37899.98,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-007",
+    "account_number": "4680165941",
+    "account_type": "Individual",
+    "ticker": "LFHY6",
+    "shares": 2241.993,
+    "market_value_usd": 12600.0,
+    "as_of": "2026-09-30"
+  },
+  {
+    "user_id": "u-008",
+    "account_number": "5806061241",
+    "account_type": "Individual",
+    "ticker": "LFMM1",
+    "shares": 21500.0,
+    "market_value_usd": 21500.0,
+    "as_of": "2026-09-30"
+  }
+]

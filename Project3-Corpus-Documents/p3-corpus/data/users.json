@@ -1,0 +1,118 @@
+[
+  {
+    "user_id": "u-001",
+    "display_name": "Alex Morgan",
+    "login_email": "alex.morgan@users.example.com",
+    "advisor_id": "adv-01",
+    "accounts": [
+      {
+        "account_number": "6029376336",
+        "account_type": "Individual"
+      },
+      {
+        "account_number": "5960695108",
+        "account_type": "Roth IRA"
+      }
+    ],
+    "synthetic": true
+  },
+  {
+    "user_id": "u-002",
+    "display_name": "Sam Patel",
+    "login_email": "sam.patel@users.example.com",
+    "advisor_id": "adv-01",
+    "accounts": [
+      {
+        "account_number": "7793381504",
+        "account_type": "Traditional IRA"
+      }
+    ],
+    "synthetic": true
+  },
+  {
+    "user_id": "u-003",
+    "display_name": "Riley Chen",
+    "login_email": "riley.chen@users.example.com",
+    "advisor_id": "adv-02",
+    "accounts": [
+      {
+        "account_number": "6695618834",
+        "account_type": "Individual"
+      },
+      {
+        "account_number": "5295126777",
+        "account_type": "Roth IRA"
+      }
+    ],
+    "synthetic": true
+  },
+  {
+    "user_id": "u-004",
+    "display_name": "Taylor Brooks",
+    "login_email": "taylor.brooks@users.example.com",
+    "advisor_id": "adv-02",
+    "accounts": [
+      {
+        "account_number": "3233468145",
+        "account_type": "Individual"
+      }
+    ],
+    "synthetic": true
+  },
+  {
+    "user_id": "u-005",
+    "display_name": "Jamie Alvarez",
+    "login_email": "jamie.alvarez@users.example.com",
+    "advisor_id": "adv-03",
+    "accounts": [
+      {
+        "account_number": "6890455285",
+        "account_type": "Joint"
+      },
+      {
+        "account_number": "5991009532",
+        "account_type": "Traditional IRA"
+      }
+    ],
+    "synthetic": true
+  },
+  {
+    "user_id": "u-006",
+    "display_name": "Casey Nguyen",
+    "login_email": "casey.nguyen@users.example.com",
+    "advisor_id": "adv-04",
+    "accounts": [
+      {
+        "account_number": "9222460042",
+        "account_type": "Individual"
+      }
+    ],
+    "synthetic": true
+  },
+  {
+    "user_id": "u-007",
+    "display_name": "Morgan Diaz",
+    "login_email": "morgan.diaz@users.example.com",
+    "advisor_id": "adv-03",
+    "accounts": [
+      {
+        "account_number": "4680165941",
+        "account_type": "Individual"
+      }
+    ],
+    "synthetic": true
+  },
+  {
+    "user_id": "u-008",
+    "display_name": "Avery Kim",
+    "login_email": "avery.kim@users.example.com",
+    "advisor_id": "adv-01",
+    "accounts": [
+      {
+        "account_number": "5806061241",
+        "account_type": "Individual"
+      }
+    ],
+    "synthetic": true
+  }
+]
