@@ -6,7 +6,7 @@ Each owner replaces their entry in `STUB_SPECIALISTS` with a real `SpecialistHan
 
 from collections.abc import Mapping
 
-from common.contracts import (
+from assistant.src.common.contracts import (
     Delegation,
     Finding,
     ReportStatus,
@@ -15,7 +15,7 @@ from common.contracts import (
     SpecialistReport,
     SpecialistTask,
 )
-from coordinator.graph import SpecialistHandler
+from assistant.src.coordinator.graph import SpecialistHandler
 
 _RESEARCH_WORDS = ("holding", "fund", "balance", "advisor?")
 _ACTION_WORDS = ("ticket", "email", "send", "notify")

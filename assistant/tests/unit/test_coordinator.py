@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from common.contracts import (
+from assistant.src.common.contracts import (
     COORDINATOR_MAX_TOKENS,
     Finding,
     RefusalReason,
@@ -13,9 +13,9 @@ from common.contracts import (
     SpecialistReport,
     SpecialistTask,
 )
-from coordinator import router as router_module
-from coordinator.graph import REFUSAL_REPLIES, ROUTING_FAILED_REPLY, build_coordinator
-from coordinator.stubs import STUB_SPECIALISTS
+from assistant.src.coordinator import router as router_module
+from assistant.src.coordinator.graph import REFUSAL_REPLIES, ROUTING_FAILED_REPLY, build_coordinator
+from assistant.src.coordinator.stubs import STUB_SPECIALISTS
 
 
 class Recorder:

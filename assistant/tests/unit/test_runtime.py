@@ -1,7 +1,7 @@
 import pytest
 from starlette.testclient import TestClient
 
-from coordinator.runtime import app, get_coordinator
+from assistant.src.coordinator.runtime import app, get_coordinator
 
 SESSION_HEADER = "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id"
 

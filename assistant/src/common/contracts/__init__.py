@@ -1,6 +1,6 @@
 """Shared contracts that let the four workstreams build in parallel."""
 
-from common.contracts.routing import (
+from assistant.src.common.contracts.routing import (
     COORDINATOR_MAX_TOKENS,
     MAX_HANDOFFS_PER_TURN,
     MAX_TOOL_ROUNDS,
