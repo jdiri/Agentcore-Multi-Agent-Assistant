@@ -236,7 +236,7 @@ The owner proposes, the team agrees.
   tests/           # unit/ integration/ e2e/                    [all]
   evals/           # AgentCore Evaluations configs + runner     [B runner, each owns a suite]
   docs/            # design.md, diagrams, results/              [all]
-  p3-corpus/       # provided data (read-only; report errors, don't edit)
+  Project3-Corpus-Documents/p3-corpus/   # provided data (read-only; report errors, don't edit)
   ```
 
 ---
