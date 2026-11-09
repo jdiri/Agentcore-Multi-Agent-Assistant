@@ -203,7 +203,7 @@ The owner proposes, the team agrees.
 | D12 | Memory | A | Short-term: last N turns (justify N). Long-term: user-preference strategy, namespaced by **`user_id` from the token**. |
 | D13 | Vector store | B | Cheapest that works (e.g. S3 Vectors or a serverless option). Tear down when idle. |
 | D14 | Ticket store | D | DynamoDB table + ticket number returned immediately (policy §3.1). |
-| D15 | IaC | C | CDK (Python) or the AgentCore starter toolkit + CDK for the surrounding AWS resources. |
+| D15 | IaC | C | Runtimes and AgentCore resources: the AgentCore CLI (`@aws/agentcore`, which replaces the unsupported starter toolkit) and the TypeScript CDK app it generates per project. Surrounding AWS resources: CDK, in a language C picks. |
 
 ---
 
@@ -231,6 +231,7 @@ The owner proposes, the team agrees.
     action/        # action agent (runtime #2)                  [D]
     lifecycle/     # state machine + audit log                  [D]
     approval/      # SES approval email + callback Lambda       [D]
+  p3coordinator/   # AgentCore CLI project for Runtime #1       [A]
   infra/           # IaC, one stack per workstream              [all]
   loaders/         # DynamoDB / Cognito / S3+KB metadata        [C, A (Cognito), B (KB metadata)]
   tests/           # unit/ integration/ e2e/                    [all]

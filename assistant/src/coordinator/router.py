@@ -4,8 +4,8 @@ import os
 
 from langchain_aws import ChatBedrockConverse
 
-from assistant.src.common.contracts import COORDINATOR_MAX_TOKENS, RoutingDecision
-from assistant.src.coordinator.graph import Router
+from common.contracts import COORDINATOR_MAX_TOKENS, RoutingDecision
+from coordinator.graph import Router
 
 DEFAULT_MODEL_ID = "amazon.nova-lite-v1:0"
 

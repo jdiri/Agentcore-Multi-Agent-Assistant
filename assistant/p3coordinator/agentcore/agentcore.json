@@ -1,0 +1,24 @@
+{
+  "name": "p3coordinator",
+  "version": 2,
+  "managedBy": "CDK",
+  "runtimes": [
+    {
+      "name": "coordinator",
+      "build": "CodeZip",
+      "entrypoint": "main.py",
+      "codeLocation": "app/coordinator",
+      "runtimeVersion": "PYTHON_3_14",
+      "protocol": "HTTP"
+    }
+  ],
+  "memories": [],
+  "knowledgeBases": [],
+  "credentials": [],
+  "evaluators": [],
+  "onlineEvalConfigs": [],
+  "agentCoreGateways": [],
+  "policyEngines": [],
+  "configBundles": [],
+  "harnesses": []
+}

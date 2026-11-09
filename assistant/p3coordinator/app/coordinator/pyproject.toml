@@ -1,0 +1,12 @@
+[project]
+name = "p3-coordinator-runtime"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "p3-agentcore-assistant",
+    "aws-opentelemetry-distro",
+    "opentelemetry-instrumentation-langchain",
+]
+
+[tool.uv.sources]
+p3-agentcore-assistant = { path = "../../.." }

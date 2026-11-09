@@ -12,7 +12,7 @@ from typing import Annotated, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
-from assistant.src.common.contracts import (
+from common.contracts import (
     Delegation,
     Finding,
     RefusalReason,

@@ -11,8 +11,8 @@ from functools import cache
 from bedrock_agentcore.runtime import BedrockAgentCoreApp, RequestContext
 from starlette.responses import JSONResponse
 
-from assistant.src.coordinator.graph import build_coordinator
-from assistant.src.coordinator.stubs import STUB_SPECIALISTS, stub_router
+from coordinator.graph import build_coordinator
+from coordinator.stubs import STUB_SPECIALISTS, stub_router
 
 app = BedrockAgentCoreApp()
 
@@ -23,7 +23,7 @@ def get_coordinator():
         route = stub_router
     else:
         # Imported here so stub mode needs no Bedrock client or region.
-        from assistant.src.coordinator.router import create_bedrock_router
+        from coordinator.router import create_bedrock_router
 
         route = create_bedrock_router()
     return build_coordinator(route, STUB_SPECIALISTS)

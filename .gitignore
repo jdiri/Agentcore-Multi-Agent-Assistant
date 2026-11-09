@@ -27,7 +27,7 @@ cdk.out/
 .bedrock_agentcore.yaml
 
 # Raw evaluation output (summaries belong in docs/results/)
-evals/output/
+assistant/evals/output/
 
 # Editors and OS
 .idea/

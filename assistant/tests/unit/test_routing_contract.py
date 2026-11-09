@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from assistant.src.common.contracts import (
+from common.contracts import (
     MAX_TOOL_ROUNDS,
     Finding,
     ReportStatus,
