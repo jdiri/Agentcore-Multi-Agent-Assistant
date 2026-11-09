@@ -8,6 +8,7 @@ dist/
 .ruff_cache/
 .coverage
 htmlcov/
+.python-version
 
 # Virtual environments
 .venv/
@@ -33,3 +34,7 @@ evals/output/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Node-mod
+node*/
+package-lock.json

@@ -1,0 +1,29 @@
+{
+  "name": "agentcore-pkgs",
+  "version": "1.0.0",
+  "description": "Node.js dependencies for an AWS Bedrock AgentCore multi-agent assistant",
+  "keywords": [
+    "aws",
+    "bedrock",
+    "agentcore",
+    "multi-agent"
+  ],
+  "homepage": "https://github.com/jdiri/Agentcore-Multi-Agent-Assistant#readme",
+  "bugs": {
+    "url": "https://github.com/jdiri/Agentcore-Multi-Agent-Assistant/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jdiri/Agentcore-Multi-Agent-Assistant.git"
+  },
+  "license": "ISC",
+  "author": "John Diri",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@aws/agentcore": "^1.0.1"
+  }
+}
