@@ -1,6 +1,6 @@
 from common.contracts.base import ToolStatus
 from common.contracts.research import GetFundInput
-from research.get_fund_local import get_fund_local
+from tools.get_fund_local import get_fund_local
 
 
 def test_existing_fund():
