@@ -3,10 +3,13 @@
 Only AgentCore/Lambda receives verified user identity (never a model tool parameter).
 The fund ticker uniquely identifies a fund in the provided synthetic corpus.
 """
+
 from datetime import date
 from decimal import Decimal
 from typing import Literal, Self
+
 from pydantic import Field, model_validator
+
 from .base import StrictContract, ToolResult
 from .routing import NonBlank
 
@@ -70,6 +73,7 @@ class SearchFundsInput(StrictContract):
     points: 0.10 means 0.10%, not a 10% fraction.
     Other filters are proposed expansions from the team's Research discussion.
     """
+
     asset_class: NonBlank | None = None
     management: Literal["Index", "Active"] | None = None
     name_contains: str | None = Field(default=None, min_length=2, max_length=80)

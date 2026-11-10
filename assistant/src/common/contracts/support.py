@@ -3,8 +3,9 @@
 No separate SupportTask/SupportReport wire type: Coordinator's routing.py remains canonical.
 Citation fields are derived from retrieved KB metadata; never invented by the model.
 """
+
 from typing import Literal
-from pydantic import Field
+
 from .base import StrictContract
 from .routing import Finding, NonBlank
 
@@ -32,6 +33,5 @@ class CitedClaim(StrictContract):
 
 
 SUPPORT_GAP_REPLY = (
-    "I don't have that information in my documents. "
-    "Would you like me to open a ticket?"
+    "I don't have that information in my documents. Would you like me to open a ticket?"
 )

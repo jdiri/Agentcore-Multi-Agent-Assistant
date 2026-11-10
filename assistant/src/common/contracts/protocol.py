@@ -3,8 +3,11 @@
 A2ARequest/A2AResponse are *application payloads* inside an authenticated A2A
 transport. They are NOT replacements for the A2A SDK wire protocol or auth.
 """
+
 from typing import Literal
+
 from pydantic import model_validator
+
 from .base import StrictContract
 from .routing import Specialist, SpecialistReport, SpecialistTask
 
