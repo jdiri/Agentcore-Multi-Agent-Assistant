@@ -8,6 +8,7 @@ from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from mcp.client.streamable_http import streamable_http_client
 from mcp import ClientSession
+from typing import Generator
 
 from config import AWS_REGION
 
@@ -18,7 +19,7 @@ TIMEOUT_SECONDS = 60.0
 
 
 class SigV4HttpxAuth(httpx.Auth):
-    """Sign outbound HTTP requests using AWS SigV4."""
+    """ configuring how to sign each outbound request """
 
     requires_request_body = True
 
@@ -27,8 +28,7 @@ class SigV4HttpxAuth(httpx.Auth):
 
         if credentials is None:
             raise RuntimeError(
-                "No AWS credentials. Locally, set AWS_PROFILE. "
-                "Deployed, check the runtime execution role."
+               "No AWS credentials. Locally, set AWS_PROFILE. Deployed, the execution role failed to resolve."
             )
 
         self._signer = SigV4Auth(
@@ -37,7 +37,7 @@ class SigV4HttpxAuth(httpx.Auth):
             region
         )
 
-    def auth_flow(self, request: httpx.Request):
+    def auth_flow(self, request: httpx.Request) -> Generator[httpx.Request, httpx.Response, None]:
         aws_request = AWSRequest(
             method=request.method,
             url=str(request.url),
@@ -58,7 +58,13 @@ class SigV4HttpxAuth(httpx.Auth):
 
 
 def gateway_url() -> str:
-    """Get the Gateway URL injected by the AgentCore CLI."""
+    """ go out and find the Gateway URL from env
+    
+        The agentcore CLI will inject env vars
+            AGENTCORE_GATEWAY_<NAME>_URL
+            AGENTCORE_GATEWAY_<NAME>_AUTH_TYPE
+    """
+
 
     for key, value in os.environ.items():
         if key.startswith("AGENTCORE_GATEWAY_") and key.endswith("_URL"):
