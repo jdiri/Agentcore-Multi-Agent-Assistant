@@ -1,0 +1,24 @@
+{
+  "name": "Action",
+  "version": 2,
+  "managedBy": "CDK",
+  "runtimes": [
+    {
+      "name": "Action",
+      "build": "CodeZip",
+      "entrypoint": "main.py",
+      "codeLocation": "app/Action",
+      "runtimeVersion": "PYTHON_3_14",
+      "protocol": "A2A"
+    }
+  ],
+  "memories": [],
+  "knowledgeBases": [],
+  "credentials": [],
+  "evaluators": [],
+  "onlineEvalConfigs": [],
+  "agentCoreGateways": [],
+  "policyEngines": [],
+  "configBundles": [],
+  "harnesses": []
+}
