@@ -3,7 +3,9 @@
 Construct this only AFTER platform-side JWT, caller and session checks.
 Parsing this model does not verify a JWT. Do not trust user-provided JSON.
 """
+
 from enum import StrEnum
+
 from .base import StrictContract
 from .routing import NonBlank
 
