@@ -30,6 +30,10 @@ actionfolder/Action/agentcore/.cache/
 # Raw evaluation output (summaries belong in docs/results/)
 assistant/evals/output/
 
+# Claude Code personal files (the shared CLAUDE.md is committed)
+CLAUDE.local.md
+.claude/settings.local.json
+
 # Editors and OS
 .idea/
 .vscode/
