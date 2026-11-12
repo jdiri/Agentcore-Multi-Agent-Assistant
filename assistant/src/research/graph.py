@@ -13,7 +13,13 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
 from research.prompt import RESEARCH_SYSTEM_PROMPT
-from research.mock_tools import get_fund
+from research.mock_tools import (
+    get_fund,
+    get_fund_returns,
+    search_funds,
+    get_my_holdings,
+    get_my_advisor,
+)
 
 
 MAX_TOOL_ROUNDS = 3
@@ -34,7 +40,11 @@ model = ChatBedrockConverse(
 
 
 # 2. Register available tools
-tools = [get_fund]
+tools = [
+    get_fund,
+    get_fund_returns,
+    search_funds,
+]
 
 model_with_tools = model.bind_tools(tools)
 
