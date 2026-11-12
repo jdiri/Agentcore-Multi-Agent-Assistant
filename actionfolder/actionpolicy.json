@@ -1,1 +1,0 @@
-{"Version":"2012-10-17","Statement":[{"Sid":"AllowCoordinatorToInvokeAction","Effect":"Allow","Principal":{"AWS":"arn:aws:iam::318228906383:role/AgentCore-p3coordinator-d-ApplicationRuntimeCoordin-LqCI7D9saD4K"},"Action":"bedrock-agentcore:InvokeAgentRuntime","Resource":"arn:aws:bedrock-agentcore:us-east-1:318228906383:runtime/Action_default_Action-CzUpKGCllv"}]}

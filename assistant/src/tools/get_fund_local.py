@@ -10,8 +10,7 @@ from common.contracts.research import (
 )
 
 FUNDS_FILE = (
-    Path(__file__).resolve().parents[2]
-    / "Project3-Corpus-Documents/p3-corpus/data/funds.json"
+    Path(__file__).resolve().parents[2] / "Project3-Corpus-Documents/p3-corpus/data/funds.json"
 )
 
 

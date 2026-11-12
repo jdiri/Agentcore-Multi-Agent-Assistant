@@ -1,20 +1,18 @@
 from typing import Annotated, Literal
-from typing_extensions import TypedDict
 
+from langchain_aws import ChatBedrockConverse
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
     SystemMessage,
 )
-from langchain_aws import ChatBedrockConverse
-
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
+from typing_extensions import TypedDict
 
-from research.prompt import RESEARCH_SYSTEM_PROMPT
 from research.mock_tools import get_fund
-
+from research.prompt import RESEARCH_SYSTEM_PROMPT
 
 MAX_TOOL_ROUNDS = 3
 

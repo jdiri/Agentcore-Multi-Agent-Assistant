@@ -43,3 +43,5 @@ Thumbs.db
 # Node-mod
 node*/
 package-lock.json
+# Real resource policy with account ID and ARNs; commit only the .example.json template
+actionfolder/actionpolicy.json
