@@ -8,14 +8,12 @@ from research.graph import build_research_graph
 async def main():
     graph = build_research_graph()
 
-    result = await graph.ainvoke({
-        "messages": [
-            HumanMessage(
-                content="Look up fund LFGR5 using your research tool."
-            )
-        ],
-        "tool_rounds": 0,
-    })
+    result = await graph.ainvoke(
+        {
+            "messages": [HumanMessage(content="Look up fund LFGR5 using your research tool.")],
+            "tool_rounds": 0,
+        }
+    )
 
     from langchain_core.messages import AIMessage, ToolMessage
 
@@ -28,11 +26,7 @@ async def main():
         for call in message.tool_calls
     ]
 
-    tool_results = [
-        message
-        for message in messages
-        if isinstance(message, ToolMessage)
-    ]
+    tool_results = [message for message in messages if isinstance(message, ToolMessage)]
 
     assert len(tool_calls) >= 1, "Model did not request a tool"
     assert tool_calls[0]["name"] == "get_fund"
@@ -44,10 +38,7 @@ async def main():
     print("Research graph test passed!")
 
     for message in result["messages"]:
-        print(
-            f"\n{message.type.upper()}: "
-            f"{message.content}"
-        )
+        print(f"\n{message.type.upper()}: {message.content}")
 
         if getattr(message, "tool_calls", None):
             print("TOOL CALLS:", message.tool_calls)

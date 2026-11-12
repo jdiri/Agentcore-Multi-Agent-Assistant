@@ -162,3 +162,41 @@ def test_bedrock_router_applies_token_cap_and_structured_output(monkeypatch):
     router_module.create_bedrock_router()
     assert model_class.call_args.kwargs["max_tokens"] == COORDINATOR_MAX_TOKENS
     model_class.return_value.with_structured_output.assert_called_once_with(RoutingDecision)
+
+
+def test_router_prompt_names_every_specialist_and_refusal():
+    prompt = router_module.SYSTEM_PROMPT
+    for value in [*Specialist, *RefusalReason]:
+        assert f"{value.value}:" in prompt, value
+
+
+def _router_with_outcomes(monkeypatch, outcomes):
+    """A Bedrock router whose structured model returns or raises each outcome in turn."""
+    calls = []
+
+    async def ainvoke(messages):
+        calls.append(messages)
+        outcome = outcomes[len(calls) - 1]
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    model_class = MagicMock()
+    model_class.return_value.with_structured_output.return_value.ainvoke = ainvoke
+    monkeypatch.setattr(router_module, "ChatBedrockConverse", model_class)
+    return router_module.create_bedrock_router(), calls
+
+
+def test_bedrock_router_retries_once_after_a_bad_answer(monkeypatch):
+    decision = RoutingDecision(refusal=RefusalReason.OFF_TOPIC)
+    route, calls = _router_with_outcomes(monkeypatch, [ValueError("bad plan"), decision])
+    assert asyncio.run(route("hi")) == decision
+    assert len(calls) == 2
+
+
+def test_bedrock_router_gives_up_after_bounded_attempts(monkeypatch):
+    failures = [ValueError("bad plan")] * router_module.ROUTING_ATTEMPTS
+    route, calls = _router_with_outcomes(monkeypatch, failures)
+    with pytest.raises(ValueError):
+        asyncio.run(route("hi"))
+    assert len(calls) == router_module.ROUTING_ATTEMPTS
