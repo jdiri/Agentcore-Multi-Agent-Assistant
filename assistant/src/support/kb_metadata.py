@@ -1,12 +1,18 @@
-"""Read KB document headers into `KBDocument`s and mark superseded versions.
+"""Read KB documents, mark superseded versions and split them into upload-ready chunks.
 
 Every corpus file starts with an H1 title and a `Key: value` header block. The block ends at
 the first blank line after it starts: policies continue with `## ` sections, FAQs go straight
 into bold questions. A version is superseded when another document with the same Document ID says
 `Supersedes:` that version. Any header problem stops the load: a document must never be
 uploaded without correct metadata.
+
+Chunking is done here, not by Bedrock (the data source uses no or large fixed-size chunking):
+one chunk per numbered `## ` section, one per FAQ question. Each chunk carries its own sidecar,
+so `section` comes from the document, never from the model.
 """
 
+import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -27,17 +33,28 @@ class KBHeaderError(ValueError):
     """A corpus file's header is missing, malformed or conflicts with another file."""
 
 
+def _split_header(text: str) -> tuple[list[str], list[str]]:
+    """(header lines, body lines). The header ends at the first blank line after the key block."""
+    lines = text.splitlines()
+    in_block = False  # True once a line other than the title is read
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped:
+            if in_block:
+                return lines[:index], lines[index + 1 :]
+        elif not stripped.startswith("# "):
+            in_block = True
+    return lines, []
+
+
 def parse_header(text: str, source: str) -> KBDocument:
     """Parse one file's header. `source` names the file in error messages."""
     title: str | None = None
     fields: dict[str, str] = {}
-    in_block = False  # True once the first `Key: value` line is read
 
-    for line in text.splitlines():
+    for line in _split_header(text)[0]:
         line = line.strip()
         if not line:
-            if in_block:
-                break  # a blank line after the key block ends the header
             continue
         if line.startswith("# "):
             if title is not None:
@@ -48,7 +65,6 @@ def parse_header(text: str, source: str) -> KBDocument:
         key, value = key.strip(), value.strip()
         if not sep or (key not in _FIELDS and key not in _IGNORED):
             raise KBHeaderError(f"{source}: unexpected header line {line!r}")
-        in_block = True
         if key in _IGNORED:
             continue
         if _FIELDS[key] in fields:
@@ -109,3 +125,113 @@ def sidecar(document: KBDocument) -> dict[str, dict[str, str | bool]]:
     matches `{"equals": {"key": "superseded", "value": false}}`.
     """
     return {"metadataAttributes": document.model_dump(mode="json", exclude_none=True)}
+
+
+# Well under Titan Text Embeddings V2's ~8k-token input; the largest real chunk is far smaller.
+MAX_CHUNK_CHARS = 6000
+
+_SECTION_HEADING = re.compile(r"^## (\d+)\. (.+)$")
+_QUESTION = re.compile(r"^\*\*(.+)\*\*$")
+# Unnumbered sections left out of the KB. The transfer policy's revision history lists the old
+# v3.1 figures and has no section number, so it could never be cited anyway.
+_SKIPPED_HEADINGS = {"## Revision history"}
+
+
+@dataclass(frozen=True)
+class KBChunk:
+    """One upload-ready piece of a document: a numbered section or one FAQ question."""
+
+    name: str  # file name in S3, e.g. account-transfer-policy-v3.2__s4.md
+    source_file: str
+    document: KBDocument
+    section: str | None  # None for FAQ questions
+    text: str
+
+
+def _label(document: KBDocument) -> str:
+    """`Title v3.2` for numbered versions, `Title, 2026-01` for dated ones (as in citations)."""
+    if "." in document.version:
+        return f"{document.title} v{document.version}"
+    return f"{document.title}, {document.version}"
+
+
+def _groups(lines: list[str], source: str, faq: bool) -> list[tuple[str, str | None, list[str]]]:
+    """Split body lines into (heading, section, content lines) at each section or question."""
+    groups: list[tuple[str, str | None, list[str]]] = []
+    skipping = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            if faq:
+                raise KBHeaderError(f"{source}: unexpected section heading {stripped!r} in an FAQ")
+            skipping = stripped in _SKIPPED_HEADINGS
+            if skipping:
+                continue
+            match = _SECTION_HEADING.match(stripped)
+            if match is None:
+                raise KBHeaderError(f"{source}: unnumbered section heading {stripped!r}")
+            groups.append((stripped[3:], match.group(1), []))
+        elif faq and (match := _QUESTION.match(stripped)):
+            groups.append((match.group(1), None, []))
+        elif skipping:
+            continue
+        elif not groups:
+            if stripped:
+                raise KBHeaderError(f"{source}: text before the first section: {stripped[:40]!r}")
+        else:
+            groups[-1][2].append(line)
+    return groups
+
+
+def split_document(source_file: str, text: str, document: KBDocument) -> list[KBChunk]:
+    """Split one document into chunks. Any structural surprise stops with the file name."""
+    faq = document.document_type == "faq"
+    groups = _groups(_split_header(text)[1], source_file, faq)
+    if not groups:
+        raise KBHeaderError(f"{source_file}: no sections or questions found")
+
+    stem = source_file.removesuffix(".md")
+    chunks: list[KBChunk] = []
+    seen: set[str] = set()
+    for number, (heading, section, content) in enumerate(groups, start=1):
+        body = "\n".join(content).strip()
+        if not body:
+            raise KBHeaderError(f"{source_file}: {heading!r} has no text")
+        if section is not None:
+            if section in seen:
+                raise KBHeaderError(f"{source_file}: section {section} appears twice")
+            seen.add(section)
+        chunk_text = f"{_label(document)} — {heading}\n\n{body}\n"
+        if len(chunk_text) > MAX_CHUNK_CHARS:
+            raise KBHeaderError(
+                f"{source_file}: {heading!r} is {len(chunk_text)} characters,"
+                f" over the {MAX_CHUNK_CHARS} limit"
+            )
+        suffix = f"s{section}" if section is not None else f"q{number:02d}"
+        chunks.append(
+            KBChunk(
+                name=f"{stem}__{suffix}.md",
+                source_file=source_file,
+                document=document,
+                section=section,
+                text=chunk_text,
+            )
+        )
+    return chunks
+
+
+def split_corpus(directory: Path) -> list[KBChunk]:
+    """Load, mark superseded and split every document in `directory`."""
+    chunks: list[KBChunk] = []
+    for name, document in load_corpus(directory).items():
+        text = (directory / name).read_text(encoding="utf-8")
+        chunks.extend(split_document(name, text, document))
+    return chunks
+
+
+def chunk_sidecar(chunk: KBChunk) -> dict[str, dict[str, str | bool]]:
+    """The document's sidecar plus `source_file`, and `section` when the chunk has one."""
+    attributes = {**sidecar(chunk.document)["metadataAttributes"], "source_file": chunk.source_file}
+    if chunk.section is not None:
+        attributes["section"] = chunk.section
+    return {"metadataAttributes": attributes}
