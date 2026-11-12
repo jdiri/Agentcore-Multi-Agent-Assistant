@@ -53,6 +53,8 @@ npm install                     # from the repo root; installs @aws/agentcore, t
 cd assistant/p3coordinator/agentcore/cdk && npm install && cd ../..
 ```
 
+Run every `npx agentcore` command from `assistant/p3coordinator/`. From anywhere else, the CLI reports "No AgentCore project found".
+
 To run through the CLI with no AWS access, put `P3_STUB_ROUTER=1` in `p3coordinator/agentcore/.env.local`, then from `p3coordinator/`:
 
 ```
@@ -60,12 +62,49 @@ npx agentcore dev
 npx agentcore invoke --runtime coordinator --local --payload '{"prompt": "What are your fees?"}'
 ```
 
-To deploy (needs AWS credentials and a region):
+Remove `P3_STUB_ROUTER=1` to use the real Nova Lite router locally. It then needs AWS credentials in that terminal.
+
+### AWS credentials
+
+The `AI-TFBD` SSO role **can't deploy**: it lacks `iam:AttachRolePolicy`, which CDK needs. Deploy with the team deploy IAM user (ask the account admin for an access key):
+
+```
+aws configure --profile <profile>     # access key, secret, us-east-1, json
+$env:AWS_PROFILE = "<profile>"        # bash: export AWS_PROFILE=<profile>
+aws sts get-caller-identity           # the ARN should end in :user/...
+```
+
+Keys live only in `~/.aws/credentials`, never in the repo or `.env.local`. CDK is already bootstrapped in us-east-1.
+
+### Deploy and invoke
 
 ```
 npx agentcore deploy
+npx agentcore status                  # runtime and role ARNs (share them in the team channel, not git)
+```
+
+Invoke from Git Bash:
+
+```
 npx agentcore invoke --runtime coordinator --payload '{"prompt": "What are your fees?"}'
 ```
+
+PowerShell 5.1 strips the quotes from JSON passed to `npx`, so use the stop-parsing token `--%`:
+
+```
+npx --% agentcore invoke --runtime coordinator --payload "{\"prompt\":\"What are your fees?\"}"
+```
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `No AgentCore project found` | Run from `assistant/p3coordinator/` |
+| `400` from the runtime, or `too many arguments for 'invoke'` | PowerShell quoting. Use `--%` or Git Bash |
+| `The shared CDKToolkit stack is in 'ROLLBACK_COMPLETE'` | A failed bootstrap. Delete the `CDKToolkit` stack with the deploy IAM user, then deploy again |
+| `AccessDenied ... iam:AttachRolePolicy` | You are on the SSO role. Switch `AWS_PROFILE` to the deploy IAM user |
+| Bare `500` | `npx agentcore logs`. Usually Bedrock model access |
+| `dev` or the deployed runtime runs old code after you edit `assistant/src` | The runtime installs `src/` as a snapshot. From `p3coordinator/`: `cd app/coordinator; uv sync --reinstall-package p3-agentcore-assistant; cd ../..`, and delete `agentcore/.cache/coordinator` before deploying |
 
 `aws-targets.json` and `agentcore/.cli/` hold the AWS account ID and ARNs, so they stay out of git. Teardown steps will be added as the stacks are built.
 

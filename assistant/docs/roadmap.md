@@ -210,8 +210,8 @@ The owner proposes, the team agrees.
 ## 6. Prep checklist (before building)
 
 ### Accounts & access
-- [ ] **(all)** Bedrock access confirmed with a **one-line invoke** (`amazon.nova-lite-v1:0`) plus an embedding model.
-- [ ] **(all)** Region chosen where all 7 AgentCore services are available.
+- [ ] **(all)** Bedrock access confirmed with a **one-line invoke** (`amazon.nova-lite-v1:0`) plus an embedding model. *A: Nova Lite confirmed in us-east-1 (2026-11-11); embedding model still to check (B).*
+- [x] **(all)** Region chosen where all 7 AgentCore services are available: **us-east-1**.
 - [ ] **(C)** **AWS Budget / CloudWatch billing alarm** created on day 1.
 - [ ] **(D)** SES (sandbox): verify the approver address + `you+jordan@`, `you+priya@`, `you+marcus@` addresses. **Never verify Dana Okafor (adv-04).** Send one test email to each and confirm delivery.
 
@@ -249,7 +249,7 @@ The owner proposes, the team agrees.
 ### Phase 0: Foundations & spikes (all)
 - [ ] Prep checklist complete.
 - [ ] One spike per person, so everyone deploys something real:
-  - **A:** hello-world agent on AgentCore Runtime, called with a Cognito JWT.
+  - **A:** hello-world agent on AgentCore Runtime, called with a Cognito JWT. *Partly done (2026-11-11): Runtime #1 (`coordinator`) is deployed and invoked with IAM auth. The Cognito JWT part moves to Track A step A3.*
   - **B:** Bedrock KB over 2–3 docs + one retrieval call with scores.
   - **C:** Gateway with one Lambda target + one Cedar policy (with conditions; the analyzer rejects condition-less policies), shown allowing and denying.
   - **D:** second runtime (its own project) running a LangGraph graph behind an A2A server wrapper, called over A2A from A's spike runtime. This is the riskiest spike, since LangGraph has no built-in A2A.
@@ -277,6 +277,15 @@ The owner proposes, the team agrees.
 - [ ] Bounded retry on throttling/timeouts.
 - [ ] One trace per turn, turns linked by session.
 - **Exit:** R01–R46 routing eval meets target, memory recall + cross-client isolation tests pass.
+
+**Track A order** (each step is its own branch and PR):
+1. **A1 Routing eval + refusal fix.** Score R01–R46 against the real router (3 runs, report in `docs/results/`), then fix misses. Known miss: "Should I sell my bond fund?" isn't refused as investment advice. Needs Bedrock only.
+2. **A2 Limits and hardening.** Call `verify_report` (`common/contracts/protocol.py`) on every report, add the per-conversation tool-call ceiling and the "I stopped here" reply, and add bounded retries on Bedrock throttling.
+3. **A3 Cognito + verified identity.** User pool, 8 test users, JWT authorizer on Runtime #1, and `VerifiedIdentityContext` built from the token and passed to specialists out of band. Unblocks **M1** (B) and **M2** (C).
+4. **A4 A2A client to Action.** Agree with D that the A2A message carries `ActionA2ARequest` JSON and the artifact returns `ActionA2AResponse` JSON, and agree how `user_id` reaches Action. Runtime #1 finds Action through `ACTION_RUNTIME_ARN`. Unblocks **M3**.
+5. **A5 AgentCore Memory.** Short-term window plus long-term preferences, namespaced by `user_id` from A3. Memory down → the turn continues.
+6. **A6 Tracing.** One trace per turn including the A2A hop, with turns linked by session.
+7. **A7 Docs and demo.** `docs/design.md` sections and decisions D1–D3, D12.
 
 #### Track B: Knowledge & Safety
 - [ ] Bedrock KB with section/Q&A-aware chunking (custom chunking or pre-split files) + metadata.
@@ -386,6 +395,12 @@ The regression eval runs at every milestone, and scores go in the progress log (
 - Memory takes minutes to activate, and long-term extraction lags. Add waits to recall tests. *(A)*
 - SES sandbox only delivers to verified addresses. Verify and prove a send early. *(D)*
 - Vector stores bill while idle. Tear down or pick the cheapest. *(B)*
+- The `AI-TFBD` SSO permission set **can't deploy**: it lacks `iam:AttachRolePolicy`, which CDK bootstrap and runtime roles need. Deploy with the team deploy IAM user (ask the account admin). CDK is bootstrapped in us-east-1. *(all)*
+- A failed bootstrap leaves the shared `CDKToolkit` stack in `ROLLBACK_COMPLETE`, and every deploy then stops. Someone with permission has to delete the stack before the next deploy re-creates it. Check for a leftover `cdk-hnb659fds-assets-*` bucket first. *(all)*
+- PowerShell 5.1 strips the quotes from JSON passed to native commands (curl, `npx`). Use `npx --% agentcore invoke ... --payload "{\"prompt\":\"...\"}"`, `Invoke-RestMethod`, or Git Bash. *(all)*
+- The `p3coordinator` runtime installs `assistant/src` as a **snapshot**, not an editable install. After editing `src/`, run `uv sync --reinstall-package p3-agentcore-assistant` in `p3coordinator/app/coordinator` and delete `p3coordinator/agentcore/.cache/coordinator`, or `agentcore dev` and `deploy` keep running old code. *(A, and anyone whose specialist runs in Runtime #1)*
+- Run `npx agentcore` from the project folder (e.g. `assistant/p3coordinator`), or it reports "No AgentCore project found". *(all)*
+- Each AgentCore project's `agentcore/aws-targets.json` and `agentcore/.cli/` hold the account ID and ARNs. Keep them untracked. *(all; note: `actionfolder/Action/agentcore/aws-targets.json` is currently tracked, D)*
 
 ## 12. Acceptance checklist tracker (§16)
 
@@ -416,4 +431,5 @@ The regression eval runs at every milestone, and scores go in the progress log (
 ## 14. Progress log
 | Date | Owner | Phase / Milestone | What changed | Eval scores (Routing / Support / Actions) |
 |---|---|---|---|---|
-| | | | | |
+| 2026-11-11 | A | Phase 0 | Runtime #1 (`coordinator`) deployed to us-east-1 with the AgentCore CLI: Nova Lite router, stub specialists. Runtime and role ARNs shared with D (not in git). | Routing: baseline pending (A1) / – / – |
+| 2026-11-11 | A | Track A / A1 | Routing eval harness (`evals/routing/run_routing.py`, `coordinator/routing_eval.py`); router prompt rewritten (refuse first, action only when asked, how-to → support) + 1 bounded retry. Known miss: R19 fund search over-refused. Reports `docs/results/routing-20261111-{1,3}.md`. | Routing (Nova Lite, 3 runs): 29–31/46 → **44–45/46** / – / – |

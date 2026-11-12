@@ -3,10 +3,13 @@
 Only code can update persisted state, with conditional writes and audit records.
 These models do not themselves enforce authorization or execute any writes.
 """
+
 from datetime import datetime
 from enum import StrEnum
 from typing import Literal, Self
+
 from pydantic import Field, model_validator
+
 from .base import StrictContract, ToolResult
 from .routing import NonBlank
 
