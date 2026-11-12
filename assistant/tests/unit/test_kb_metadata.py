@@ -6,6 +6,7 @@ import pytest
 from common.contracts.support import DocumentType, KBDocument
 from support.kb_metadata import (
     KBHeaderError,
+    document_from_sidecar,
     load_corpus,
     mark_superseded,
     parse_header,
@@ -167,8 +168,8 @@ def test_sidecar_for_superseded_policy(corpus):
             "version": "3.1",
             "supersedes": "3.0",
             "owner": "Client Services Operations",
-            "superseded": True,
             "document_type": "policy",
+            "status": "superseded",
         }
     }
 
@@ -177,14 +178,42 @@ def test_sidecar_leaves_out_missing_supersedes():
     assert "supersedes" not in sidecar(doc("3.2", None))["metadataAttributes"]
 
 
-def test_every_corpus_sidecar_uses_bedrock_value_types(corpus):
+def test_every_corpus_sidecar_value_is_a_string(corpus):
+    # Bedrock rejected boolean values outright ("Type boolean not supported"), so: strings only.
     for document in corpus.values():
         for key, value in sidecar(document)["metadataAttributes"].items():
-            expected = bool if key == "superseded" else str
-            assert type(value) is expected, (document.title, key)
+            assert type(value) is str, (document.title, key)
+
+
+def test_current_document_sidecar_status(corpus):
+    attributes = sidecar(corpus["account-transfer-policy-v3.2.md"])["metadataAttributes"]
+    assert attributes["status"] == "current"
+    assert "superseded" not in attributes
 
 
 def test_sidecar_is_json_and_loads_back(corpus):
     for document in corpus.values():
         body = json.loads(json.dumps(sidecar(document)))
-        assert KBDocument(**body["metadataAttributes"]) == document
+        assert document_from_sidecar(body["metadataAttributes"]) == document
+
+
+def test_document_from_retrieval_metadata_ignores_extra_keys(corpus):
+    document = corpus["account-transfer-policy-v3.2.md"]
+    metadata = {
+        **sidecar(document)["metadataAttributes"],
+        "section": "4",
+        "source_file": "account-transfer-policy-v3.2.md",
+        "x-amz-bedrock-kb-chunk-id": "abc-123",
+        "x-amz-bedrock-kb-source-uri": "s3://bucket/chunks/account-transfer-policy-v3.2__s4.md",
+    }
+    assert document_from_sidecar(metadata) == document
+
+
+@pytest.mark.parametrize("status", [None, "", "Current", "true", "false", "draft"])
+def test_missing_or_unknown_status_rejected(corpus, status):
+    attributes = dict(sidecar(corpus["fee-schedule-faq-2026-01.md"])["metadataAttributes"])
+    attributes.pop("status")
+    if status is not None:
+        attributes["status"] = status
+    with pytest.raises(ValueError, match="no valid status"):
+        document_from_sidecar(attributes)

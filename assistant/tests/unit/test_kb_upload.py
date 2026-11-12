@@ -74,7 +74,7 @@ def test_planned_sidecar_body_is_bedrock_json(chunks):
     sidecar = files["chunks/account-transfer-policy-v3.1__s4.md.metadata.json"]
     assert sidecar.content_type == "application/json"
     attributes = json.loads(sidecar.body)["metadataAttributes"]
-    assert attributes["superseded"] is True and attributes["section"] == "4"
+    assert attributes["status"] == "superseded" and attributes["section"] == "4"
 
 
 def test_planned_chunk_body_is_utf8_text(chunks):

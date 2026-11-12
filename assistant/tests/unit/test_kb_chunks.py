@@ -123,8 +123,8 @@ def test_policy_chunk_sidecar(chunks):
             "version": "3.1",
             "supersedes": "3.0",
             "owner": "Client Services Operations",
-            "superseded": True,
             "document_type": "policy",
+            "status": "superseded",
             "source_file": "account-transfer-policy-v3.1.md",
             "section": "4",
         }
@@ -137,10 +137,16 @@ def test_faq_chunk_sidecar_has_no_section(chunks):
     assert attributes["metadataAttributes"]["source_file"] == "fee-schedule-faq-2026-01.md"
 
 
-def test_every_chunk_sidecar_uses_bedrock_value_types(chunks):
+def test_every_chunk_sidecar_value_is_a_string(chunks):
     for chunk in chunks:
         for key, value in chunk_sidecar(chunk)["metadataAttributes"].items():
-            assert type(value) is (bool if key == "superseded" else str), (chunk.name, key)
+            assert type(value) is str, (chunk.name, key)
+
+
+def test_status_counts_match_superseded_chunks(chunks):
+    statuses = [chunk_sidecar(c)["metadataAttributes"]["status"] for c in chunks]
+    assert statuses.count("superseded") == 8
+    assert statuses.count("current") == 112
 
 
 # 4. Structural problems stop the split.

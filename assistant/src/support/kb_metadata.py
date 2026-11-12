@@ -12,8 +12,10 @@ so `section` comes from the document, never from the model.
 """
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -117,14 +119,33 @@ def sidecar_name(file_name: str) -> str:
     return f"{file_name}.metadata.json"
 
 
-def sidecar(document: KBDocument) -> dict[str, dict[str, str | bool]]:
-    """The `.metadata.json` body for one document.
+# Bedrock KB metadata accepts only strings, numbers and string lists: a boolean `superseded`
+# makes the whole sidecar invalid. So the flag is stored as `status`, and retrieval filters on
+# {"equals": {"key": "status", "value": "current"}}.
+STATUS_CURRENT = "current"
+STATUS_SUPERSEDED = "superseded"
+CURRENT_ONLY_FILTER = {"equals": {"key": "status", "value": STATUS_CURRENT}}
 
-    Bedrock metadata values must be strings, numbers, booleans or string lists, never null, so
-    a missing `supersedes` is left out. `superseded` stays a real boolean: the retrieval filter
-    matches `{"equals": {"key": "superseded", "value": false}}`.
+
+def sidecar(document: KBDocument) -> dict[str, dict[str, str]]:
+    """The `.metadata.json` body for one document: strings only, no nulls."""
+    attributes = document.model_dump(mode="json", exclude_none=True, exclude={"superseded"})
+    attributes["status"] = STATUS_SUPERSEDED if document.superseded else STATUS_CURRENT
+    return {"metadataAttributes": attributes}
+
+
+def document_from_sidecar(metadata: Mapping[str, Any]) -> KBDocument:
+    """Rebuild a `KBDocument` from sidecar attributes, e.g. a Bedrock retrieval result's metadata.
+
+    Bedrock adds its own `x-amz-bedrock-kb-*` keys, and chunks carry `section` and
+    `source_file`; those are ignored here. A missing or unknown `status` is an error, never a
+    guess: treating an unmarked document as current could let v3.1 through.
     """
-    return {"metadataAttributes": document.model_dump(mode="json", exclude_none=True)}
+    status = metadata.get("status")
+    if status not in (STATUS_CURRENT, STATUS_SUPERSEDED):
+        raise ValueError(f"metadata has no valid status (got {status!r})")
+    fields = {key: metadata[key] for key in KBDocument.model_fields if key in metadata}
+    return KBDocument(**fields, superseded=status == STATUS_SUPERSEDED)
 
 
 # Well under Titan Text Embeddings V2's ~8k-token input; the largest real chunk is far smaller.
@@ -229,7 +250,7 @@ def split_corpus(directory: Path) -> list[KBChunk]:
     return chunks
 
 
-def chunk_sidecar(chunk: KBChunk) -> dict[str, dict[str, str | bool]]:
+def chunk_sidecar(chunk: KBChunk) -> dict[str, dict[str, str]]:
     """The document's sidecar plus `source_file`, and `section` when the chunk has one."""
     attributes = {**sidecar(chunk.document)["metadataAttributes"], "source_file": chunk.source_file}
     if chunk.section is not None:
