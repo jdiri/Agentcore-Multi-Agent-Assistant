@@ -15,7 +15,7 @@ from config import AWS_REGION
 
 SIGNING_SERVICE = "bedrock-agentcore"
 UNSIGNABLE = {"connection", "host", "content-length"}
-TIMEOUT_SECONDS = 60.0
+TIMEOUT_SECONDS = 60.0 # probably change
 
 
 class SigV4HttpxAuth(httpx.Auth):
