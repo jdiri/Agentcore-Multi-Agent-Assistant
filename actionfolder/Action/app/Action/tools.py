@@ -8,6 +8,7 @@ from gateway import call_gateway_tool
 async def draft_email(
     to_role: str,
     subject: str,
+    recipient_email: str, #just added
     body: str
 ) -> dict:
     """
@@ -20,6 +21,7 @@ async def draft_email(
         {
             "to_role": to_role,
             "subject": subject,
+            "recipent_email": recipient_email, #
             "body": body
         }
     )
