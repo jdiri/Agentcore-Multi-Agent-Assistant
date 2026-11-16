@@ -204,6 +204,7 @@ The owner proposes, the team agrees.
 | D13 | Vector store | B | Cheapest that works (e.g. S3 Vectors or a serverless option). Tear down when idle. |
 | D14 | Ticket store | D | DynamoDB table + ticket number returned immediately (policy §3.1). |
 | D15 | IaC | C | Runtimes and AgentCore resources: the AgentCore CLI (`@aws/agentcore`, which replaces the unsupported starter toolkit) and the TypeScript CDK app it generates per project. Surrounding AWS resources: CDK, in a language C picks. |
+| D16 | Tool-call ceiling | A | 20 tool calls per conversation (`MAX_TOOL_CALLS_PER_CONVERSATION`), counted from each report's `tool_calls_used` (or `tool_rounds_used` if higher). Checked before each delegation, so one specialist can overshoot by its own calls. Stored in process per session until A5 moves it to AgentCore Memory. |
 
 ---
 
@@ -269,12 +270,12 @@ The owner proposes, the team agrees.
 #### Track A: Orchestration & Memory
 - [ ] Coordinator: structured routing output validated against the **specialist enum** (can't invent a destination). Writes replies only from specialist reports.
 - [ ] Specialists get a task + return a report (no shared conversation); log exactly what each one was told.
-- [ ] Limits in code: 4 hand-offs, 1 use per specialist, 3 tool rounds, per-conversation tool ceiling, token caps. Graceful "I stopped here" message.
+- [x] Limits in code: 4 hand-offs, 1 use per specialist, 3 tool rounds, per-conversation tool ceiling, token caps. Graceful "I stopped here" message. *(A2: ceiling of 20 tool calls per conversation, checked before each delegation; every report goes through `verify_report`.)*
 - [ ] Refusals: off-topic, investment advice (decline + offer the advisor), prompt attacks (with B's guardrails).
 - [ ] Inbound auth: unsigned calls rejected before any model runs.
 - [ ] A2A client to the Action runtime; Action runtime down → finish what's possible + say so.
 - [ ] AgentCore Memory: short-term window + long-term preferences per `user_id`; memory down → continue. Recall tests wait for extraction (it takes minutes).
-- [ ] Bounded retry on throttling/timeouts.
+- [x] Bounded retry on throttling/timeouts. *(A2: botocore standard retries, 3 attempts, via `common/bedrock.py`; then a plain "busy" reply.)*
 - [ ] One trace per turn, turns linked by session.
 - **Exit:** R01–R46 routing eval meets target, memory recall + cross-client isolation tests pass.
 
@@ -433,3 +434,4 @@ The regression eval runs at every milestone, and scores go in the progress log (
 |---|---|---|---|---|
 | 2026-11-11 | A | Phase 0 | Runtime #1 (`coordinator`) deployed to us-east-1 with the AgentCore CLI: Nova Lite router, stub specialists. Runtime and role ARNs shared with D (not in git). | Routing: baseline pending (A1) / – / – |
 | 2026-11-11 | A | Track A / A1 | Routing eval harness (`evals/routing/run_routing.py`, `coordinator/routing_eval.py`); router prompt rewritten (refuse first, action only when asked, how-to → support) + 1 bounded retry. Known miss: R19 fund search over-refused. Reports `docs/results/routing-20261111-{1,3}.md`. | Routing (Nova Lite, 3 runs): 29–31/46 → **44–45/46** / – / – |
+| 2026-11-13 | A | Track A / A2 | `verify_report` on every report; per-conversation tool-call ceiling (20) with the "I stopped here" reply; `SpecialistReport.tool_calls_used` added (B/C/D to fill in); shared Bedrock retry/timeout config (`common/bedrock.py`) and a "busy" reply on throttling. Report `docs/results/routing-20261116-1.md`. | Routing (Nova Lite, 1 run): **45/46**, 0 errors (R19 still the known miss) / – / – |
