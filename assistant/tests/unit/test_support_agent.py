@@ -55,17 +55,26 @@ def run(retrieved, answer, *, instruction=QUESTION):
     return asyncio.run(handler(task(instruction=instruction))), seen
 
 
-def claim(text, excerpt=1, subsection=None):
-    return DraftClaim(claim=text, excerpt=excerpt, subsection=subsection)
+ACATS_QUOTE = "Incoming ACATS transfers normally complete in 3 to 6 business days"
+S4 = "account-transfer-policy-v3.2__s4.md"
+S7 = "account-transfer-policy-v3.2__s7.md"
+WIRES = "fee-schedule-faq-2026-01__q05.md"
 
 
-# 1. Answers are cited by code, from chunk metadata.
+def claim(text, excerpt=1, quote=ACATS_QUOTE):
+    return DraftClaim(claim=text, excerpt=excerpt, quote=quote)
 
 
-def test_answer_cites_the_subsection_found_in_the_chunk(chunks):
-    hits = [chunks["account-transfer-policy-v3.2__s4.md"]]
-    answer = SupportAnswer(covered=True, claims=[claim("It takes 3 to 6 business days.", 1, "4.1")])
-    report, seen = run(hits, answer)
+def sources(answer, hits):
+    return [c.citation.as_source() for c in cite_claims(answer, hits)]
+
+
+# 1. Citations come from where the quote actually is in the retrieved text.
+
+
+def test_answer_cites_the_paragraph_that_holds_the_quote(chunks):
+    answer = SupportAnswer(covered=True, claims=[claim("It takes 3 to 6 business days.")])
+    report, seen = run([chunks[S4]], answer)
     assert report.status is ReportStatus.COMPLETED
     assert [(f.claim, f.source) for f in report.findings] == [
         ("It takes 3 to 6 business days.", "Account Transfer Policy v3.2, s.4.1")
@@ -74,38 +83,58 @@ def test_answer_cites_the_subsection_found_in_the_chunk(chunks):
     assert seen["question"] == QUESTION
 
 
-def test_subsection_not_in_the_chunk_falls_back_to_its_section(chunks):
-    hits = [chunks["account-transfer-policy-v3.2__s4.md"]]
-    answer = SupportAnswer(covered=True, claims=[claim("x", 1, "4.9"), claim("y", 1, "5.1")])
-    sources = [c.citation.as_source() for c in cite_claims(answer, hits)]
-    assert sources == ["Account Transfer Policy v3.2, s.4"] * 2
+def test_wrong_excerpt_number_still_cites_where_the_quote_is(chunks):
+    # The live bug: the model named the Fees excerpt (s.7) for a s.4.1 fact.
+    answer = SupportAnswer(covered=True, claims=[claim("3 to 6 business days.", excerpt=1)])
+    assert sources(answer, [chunks[S7], chunks[S4]]) == ["Account Transfer Policy v3.2, s.4.1"]
+
+
+def test_quote_in_no_retrieved_chunk_is_dropped(chunks):
+    invented = claim("It takes 5 to 8 days.", quote="normally complete in 5 to 8 business days")
+    answer = SupportAnswer(covered=True, claims=[invented])
+    assert cite_claims(answer, [chunks[S4], chunks[S7]]) == []
+
+
+def test_quote_matches_across_bold_marks_spacing_and_case(chunks):
+    quote = "incoming ACATS   transfers normally complete in **3 to 6 BUSINESS days**"
+    answer = SupportAnswer(covered=True, claims=[claim("x", quote=quote)])
+    assert sources(answer, [chunks[S4]]) == ["Account Transfer Policy v3.2, s.4.1"]
+
+
+def test_quote_from_another_subsection_cites_that_subsection(chunks):
+    quote = "Non-ACATS transfers normally take 2 to 3 weeks"
+    answer = SupportAnswer(covered=True, claims=[claim("x", quote=quote)])
+    assert sources(answer, [chunks[S4]]) == ["Account Transfer Policy v3.2, s.4.3"]
+
+
+def test_quote_of_the_context_line_is_not_evidence(chunks):
+    answer = SupportAnswer(covered=True, claims=[claim("x", quote="Account Transfer Policy v3.2")])
+    assert cite_claims(answer, [chunks[S4]]) == []
+
+
+def test_short_quotes_are_rejected(chunks):
+    answer = SupportAnswer(covered=True, claims=[claim("x", quote="business days")])
+    assert cite_claims(answer, [chunks[S4]]) == []
 
 
 def test_faq_claim_has_no_section(chunks):
-    hits = [chunks["fee-schedule-faq-2026-01__q05.md"]]
-    answer = SupportAnswer(covered=True, claims=[claim("A fact.", 1, "5")])
-    [cited] = cite_claims(answer, hits)
-    assert cited.citation.as_source() == "Fee Schedule FAQ, 2026-01"
+    quote = "Each outgoing wire costs $10."
+    answer = SupportAnswer(covered=True, claims=[claim("Outgoing wires cost $10.", quote=quote)])
+    assert sources(answer, [chunks[WIRES]]) == ["Fee Schedule FAQ, 2026-01"]
 
 
-def test_claims_pointing_at_no_excerpt_are_dropped(chunks):
-    hits = [chunks["account-transfer-policy-v3.2__s4.md"]]
-    answer = SupportAnswer(
-        covered=True, claims=[claim("ok"), claim("bad", 2), claim("zero", 0), claim("   ")]
-    )
-    assert [c.claim for c in cite_claims(answer, hits)] == ["ok"]
+def test_blank_claims_are_dropped(chunks):
+    answer = SupportAnswer(covered=True, claims=[claim("ok"), claim("   ")])
+    assert [c.claim for c in cite_claims(answer, [chunks[S4]])] == ["ok"]
 
 
-def test_each_claim_cites_its_own_excerpt(chunks):
-    hits = [
-        chunks["account-transfer-policy-v3.2__s4.md"],
-        chunks["fee-schedule-faq-2026-01__q05.md"],
-    ]
-    answer = SupportAnswer(covered=True, claims=[claim("a", 2), claim("b", 1)])
-    report, _ = run(hits, answer)
+def test_each_claim_cites_its_own_source(chunks):
+    wires = claim("b", excerpt=2, quote="Each outgoing wire costs $10.")
+    answer = SupportAnswer(covered=True, claims=[wires, claim("a")])
+    report, _ = run([chunks[S4], chunks[WIRES]], answer)
     assert [f.source for f in report.findings] == [
         "Fee Schedule FAQ, 2026-01",
-        "Account Transfer Policy v3.2, s.4",
+        "Account Transfer Policy v3.2, s.4.1",
     ]
 
 
@@ -139,7 +168,12 @@ def test_no_results_gives_the_gap_reply_without_calling_the_model():
 
 def test_covered_but_no_usable_claims_is_a_gap(chunks):
     hits = [chunks["account-transfer-policy-v3.2__s4.md"]]
-    report, _ = run(hits, SupportAnswer(covered=True, claims=[claim("x", 7)]))
+    report, _ = run(
+        hits,
+        SupportAnswer(
+            covered=True, claims=[claim("x", 7, quote="words that are not in the policy")]
+        ),
+    )
     assert report.status is ReportStatus.NO_INFORMATION
 
 
