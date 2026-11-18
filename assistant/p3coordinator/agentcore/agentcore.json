@@ -17,7 +17,17 @@
   "credentials": [],
   "evaluators": [],
   "onlineEvalConfigs": [],
-  "agentCoreGateways": [],
+  "agentCoreGateways": [
+    {
+      "name": "Project3Gateway",
+      "protocolType": "MCP",
+      "description": "Shared MCP Gateway for Project 3 Research and Action tools",
+      "targets": [],
+      "authorizerType": "AWS_IAM",
+      "enableSemanticSearch": false,
+      "exceptionLevel": "NONE"
+    }
+  ],
   "policyEngines": [],
   "configBundles": [],
   "harnesses": []

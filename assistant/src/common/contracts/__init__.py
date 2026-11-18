@@ -3,6 +3,7 @@
 from common.contracts.routing import (
     COORDINATOR_MAX_TOKENS,
     MAX_HANDOFFS_PER_TURN,
+    MAX_TOOL_CALLS_PER_CONVERSATION,
     MAX_TOOL_ROUNDS,
     SPECIALIST_MAX_TOKENS,
     Delegation,
@@ -18,6 +19,7 @@ from common.contracts.routing import (
 __all__ = [
     "COORDINATOR_MAX_TOKENS",
     "MAX_HANDOFFS_PER_TURN",
+    "MAX_TOOL_CALLS_PER_CONVERSATION",
     "MAX_TOOL_ROUNDS",
     "SPECIALIST_MAX_TOKENS",
     "Delegation",

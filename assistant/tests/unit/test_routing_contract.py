@@ -151,6 +151,34 @@ def test_tool_rounds_are_bounded(rounds):
         )
 
 
+def test_tool_calls_default_to_zero_and_reject_negatives():
+    report = SpecialistReport(
+        task_id="t-1", specialist="research", status="completed", findings=[FINDING]
+    )
+    assert report.tool_calls_used == 0
+    with pytest.raises(ValidationError):
+        SpecialistReport(
+            task_id="t-1",
+            specialist="research",
+            status="completed",
+            findings=[FINDING],
+            tool_calls_used=-1,
+        )
+
+
+@pytest.mark.parametrize(("calls", "rounds", "charged"), [(5, 2, 5), (0, 2, 2), (0, 0, 0)])
+def test_ceiling_charge_never_undercounts_rounds(calls, rounds, charged):
+    report = SpecialistReport(
+        task_id="t-1",
+        specialist="research",
+        status="completed",
+        findings=[FINDING],
+        tool_calls_used=calls,
+        tool_rounds_used=rounds,
+    )
+    assert report.tool_calls_charged == charged
+
+
 def test_report_survives_json_round_trip():
     report = SpecialistReport(
         task_id="t-1",

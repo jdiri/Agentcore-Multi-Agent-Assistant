@@ -12,7 +12,9 @@ from typing import Annotated, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
+from common.bedrock import is_busy_error
 from common.contracts import (
+    MAX_TOOL_CALLS_PER_CONVERSATION,
     Delegation,
     Finding,
     RefusalReason,
@@ -22,6 +24,8 @@ from common.contracts import (
     SpecialistReport,
     SpecialistTask,
 )
+from common.contracts.protocol import ProtocolViolation, verify_report
+from coordinator.budget import InMemoryToolBudget, ToolBudget
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +33,11 @@ Router = Callable[[str], Awaitable[RoutingDecision]]
 SpecialistHandler = Callable[[SpecialistTask], Awaitable[SpecialistReport]]
 
 ROUTING_FAILED_REPLY = "I'm sorry, I couldn't process that request just now. Please try again."
+BUSY_REPLY = "I'm busy right now and couldn't process that request. Please try again in a moment."
+STOPPED_REPLY = (
+    "I stopped here because this conversation reached its limit on lookups. "
+    "Please start a new conversation, or I can open a ticket for you."
+)
 REFUSAL_REPLIES: Mapping[RefusalReason, str] = {
     RefusalReason.OFF_TOPIC: (
         "I can only help with questions about your Lanternfield accounts, funds and policies."
@@ -48,22 +57,30 @@ class TurnState(TypedDict, total=False):
     turn_id: str
     decision: RoutingDecision | None
     reports: Annotated[list[SpecialistReport], add]
+    routing_busy: bool  # routing failed on throttling or a timeout
+    stopped: bool  # the conversation's tool-call ceiling was reached
     reply: str
 
 
 def _next_step(state: TurnState) -> str:
     decision = state.get("decision")
     reports = state.get("reports", [])
-    if decision is None or len(reports) >= len(decision.delegations):
+    if decision is None or state.get("stopped") or len(reports) >= len(decision.delegations):
         return "compose"
     if reports and reports[-1].status is ReportStatus.AWAITING_APPROVAL:
         return "compose"
     return "run_specialist"
 
 
-def _render_reply(decision: RoutingDecision | None, reports: list[SpecialistReport]) -> str:
+def _render_reply(
+    decision: RoutingDecision | None,
+    reports: list[SpecialistReport],
+    *,
+    routing_busy: bool = False,
+    stopped: bool = False,
+) -> str:
     if decision is None:
-        return ROUTING_FAILED_REPLY
+        return BUSY_REPLY if routing_busy else ROUTING_FAILED_REPLY
     if decision.refusal is not None:
         return REFUSAL_REPLIES[decision.refusal]
 
@@ -75,14 +92,26 @@ def _render_reply(decision: RoutingDecision | None, reports: list[SpecialistRepo
         if report.specialist is Specialist.SUPPORT and report.findings:
             sources = dict.fromkeys(finding.source for finding in report.findings)
             parts.append("Sources: " + " ".join(f"[{source}]" for source in sources))
+    if stopped:
+        parts.append(STOPPED_REPLY)
     return "\n\n".join(parts)
 
 
-def build_coordinator(route: Router, specialists: Mapping[Specialist, SpecialistHandler]):
-    """Compile the graph. `specialists` must have a handler for every `Specialist`."""
+def build_coordinator(
+    route: Router,
+    specialists: Mapping[Specialist, SpecialistHandler],
+    budget: ToolBudget | None = None,
+):
+    """Compile the graph. `specialists` must have a handler for every `Specialist`.
+
+    `budget` counts tool calls per session against `MAX_TOOL_CALLS_PER_CONVERSATION`. The
+    ceiling is checked before each delegation, so one specialist can overshoot it by at most
+    its own calls (bounded by its tool rounds).
+    """
     missing = set(Specialist) - set(specialists)
     if missing:
         raise ValueError(f"missing specialist handlers: {sorted(missing)}")
+    budget = budget if budget is not None else InMemoryToolBudget()
 
     async def route_node(state: TurnState) -> TurnState:
         try:
@@ -90,11 +119,22 @@ def build_coordinator(route: Router, specialists: Mapping[Specialist, Specialist
         except Exception as exc:
             # Type only: validation errors can echo the client's message.
             logger.error("routing failed turn_id=%s error=%s", state["turn_id"], type(exc).__name__)
-            return {"decision": None}
+            return {"decision": None, "routing_busy": is_busy_error(exc)}
 
     async def run_specialist(state: TurnState) -> TurnState:
         reports = state.get("reports", [])
         delegation: Delegation = state["decision"].delegations[len(reports)]
+
+        used = await budget.used(state["session_id"])
+        if used >= MAX_TOOL_CALLS_PER_CONVERSATION:
+            logger.warning(
+                "tool ceiling reached turn_id=%s specialist=%s used=%d limit=%d",
+                state["turn_id"],
+                delegation.specialist,
+                used,
+                MAX_TOOL_CALLS_PER_CONVERSATION,
+            )
+            return {"stopped": True}
 
         # Never let Action draft or send from incomplete inputs.
         if delegation.specialist is Specialist.ACTION and any(
@@ -123,7 +163,7 @@ def build_coordinator(route: Router, specialists: Mapping[Specialist, Specialist
             task.specialist,
         )
         try:
-            return {"reports": [await specialists[task.specialist](task)]}
+            report = await specialists[task.specialist](task)
         except Exception as exc:
             logger.error(
                 "specialist failed task_id=%s specialist=%s error=%s",
@@ -133,8 +173,27 @@ def build_coordinator(route: Router, specialists: Mapping[Specialist, Specialist
             )
             return {"reports": [_unreachable_report(task)]}
 
+        # Charge the calls even if the report is rejected below: they were still made.
+        await budget.add(state["session_id"], report.tool_calls_charged)
+        try:
+            return {"reports": [verify_report(task, report)]}
+        except ProtocolViolation as exc:
+            logger.error(
+                "report rejected task_id=%s specialist=%s error=%s",
+                task.task_id,
+                task.specialist,
+                type(exc).__name__,
+            )
+            return {"reports": [_unreachable_report(task)]}
+
     def compose(state: TurnState) -> TurnState:
-        return {"reply": _render_reply(state.get("decision"), state.get("reports", []))}
+        reply = _render_reply(
+            state.get("decision"),
+            state.get("reports", []),
+            routing_busy=state.get("routing_busy", False),
+            stopped=state.get("stopped", False),
+        )
+        return {"reply": reply}
 
     graph = StateGraph(TurnState)
     graph.add_node("route", route_node)

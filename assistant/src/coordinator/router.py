@@ -5,6 +5,7 @@ import os
 
 from langchain_aws import ChatBedrockConverse
 
+from common.bedrock import bedrock_client_config
 from common.contracts import COORDINATOR_MAX_TOKENS, RoutingDecision
 from coordinator.graph import Router
 
@@ -65,17 +66,19 @@ def create_bedrock_router(model_id: str | None = None) -> Router:
         model_id=model_id or os.environ.get("COORDINATOR_MODEL_ID", DEFAULT_MODEL_ID),
         max_tokens=COORDINATOR_MAX_TOKENS,
         temperature=0,
+        config=bedrock_client_config(),
     )
     structured = model.with_structured_output(RoutingDecision)
 
     async def route(message: str) -> RoutingDecision:
-        # The model occasionally returns an invalid plan or a transient model error, so retry a
-        # bounded number of times. The last error propagates and the graph reports it.
+        # The model occasionally returns an invalid plan, so retry that a bounded number of times.
+        # Pydantic and output-parser errors are ValueErrors. Throttling and timeouts are retried
+        # by botocore (see common.bedrock), so they propagate here and the graph reports them.
         messages = [("system", SYSTEM_PROMPT), ("human", message)]
         for attempt in range(1, ROUTING_ATTEMPTS + 1):
             try:
                 return await structured.ainvoke(messages)
-            except Exception as exc:
+            except ValueError as exc:
                 if attempt == ROUTING_ATTEMPTS:
                     raise
                 logger.warning(

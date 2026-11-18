@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_vali
 
 MAX_HANDOFFS_PER_TURN = 4
 MAX_TOOL_ROUNDS = 3
+MAX_TOOL_CALLS_PER_CONVERSATION = 20
 COORDINATOR_MAX_TOKENS = 1024
 SPECIALIST_MAX_TOKENS = 2048
 
@@ -112,6 +113,16 @@ class SpecialistReport(_Contract):
     detail: NonBlank | None = None
     action_request_id: NonBlank | None = None
     tool_rounds_used: int = Field(default=0, ge=0, le=MAX_TOOL_ROUNDS)
+    tool_calls_used: int = Field(
+        default=0,
+        ge=0,
+        description="Every tool call made for this task. Counts toward the conversation ceiling.",
+    )
+
+    @property
+    def tool_calls_charged(self) -> int:
+        """Calls to count against the ceiling. Each round makes at least one call."""
+        return max(self.tool_calls_used, self.tool_rounds_used)
 
     @model_validator(mode="after")
     def _check_status(self) -> Self:
