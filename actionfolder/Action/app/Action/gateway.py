@@ -87,7 +87,7 @@ async def call_gateway_tool(tool_name: str, arguments: dict) -> dict:
         async with streamable_http_client(
             url,
             http_client=http_client
-        ) as (read, write, _):
+        ) as (read, write):
 
             async with ClientSession(read, write) as session:
                 await session.initialize()
@@ -97,10 +97,10 @@ async def call_gateway_tool(tool_name: str, arguments: dict) -> dict:
                     arguments=arguments
                 )
 
-                if result.isError:
+                if result.is_error:
                     raise RuntimeError(
                         f"Gateway tool '{tool_name}' failed: {result.content}"
                     )
 
 
-                return result.structuredContent
+                return result.structured_content
