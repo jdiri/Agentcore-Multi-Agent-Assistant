@@ -1,0 +1,40 @@
+[
+  {
+    "name": "draft_email",
+    "description": "Create an email draft for approval.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "to_role": {"type": "string"},
+        "subject": {"type": "string"},
+        "recipient_email": {"type": "string"},
+        "body": {"type": "string"}
+      },
+      "required": ["to_role", "subject", "recipient_email", "body"]
+    }
+  },
+  {
+    "name": "send_approved_email",
+    "description": "Send an approved email.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "request_id": {"type": "string"}
+      },
+      "required": ["request_id"]
+    }
+  },
+  {
+    "name": "create_ticket",
+    "description": "Create a support ticket.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "summary": {"type": "string"},
+        "description": {"type": "string"},
+        "category": {"type": "string"}
+      },
+      "required": ["summary", "description", "category"]
+    }
+  }
+]

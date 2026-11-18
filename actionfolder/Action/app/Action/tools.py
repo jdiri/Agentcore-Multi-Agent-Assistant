@@ -17,11 +17,11 @@ async def draft_email(
     """
 
     return await call_gateway_tool(
-        "draft_email",
+        "ActionLambda___draft_email",
         {
             "to_role": to_role,
             "subject": subject,
-            "recipent_email": recipient_email, #
+            "recipient_email": recipient_email, #
             "body": body
         }
     )
@@ -35,7 +35,7 @@ async def send_approved_email(request_id: str) -> dict:
     """
 
     return await call_gateway_tool(
-        "send_approved_email",
+        "ActionLambda___send_approved_email",
         {
             "request_id": request_id
         }
@@ -51,12 +51,16 @@ async def create_ticket(
     """
     Create a support ticket through the authorized ticket creation process.
     """
-
-    return await call_gateway_tool(
-        "create_ticket",
+    print("CREATE_TICKET TOOL STARTED")
+    print("Calling Gateway: ActionLambda___create_ticket")
+    result = await call_gateway_tool(
+        "ActionLambda___create_ticket",
         {
             "summary": summary,
             "description": description,
             "category": category
         }
     )
+
+    print("GATEWAY RESULT:", result)
+    return result

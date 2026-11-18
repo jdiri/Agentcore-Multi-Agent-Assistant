@@ -9,7 +9,13 @@
       "entrypoint": "main.py",
       "codeLocation": "app/Action",
       "runtimeVersion": "PYTHON_3_14",
-      "protocol": "A2A"
+      "protocol": "A2A",
+       "envVars": [
+      {
+      "name": "AGENTCORE_GATEWAY_PROJECT3_URL",
+      "value": "https://p3coordinator-default-project3gateway-byavncaamk.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp"
+      }
+                  ]
     }
   ],
   "memories": [],
