@@ -22,7 +22,16 @@
       "name": "Project3Gateway",
       "protocolType": "MCP",
       "description": "Shared MCP Gateway for Project 3 Research and Action tools",
-      "targets": [],
+      "targets": [
+        {
+          "name": "ActionLambda",
+          "targetType": "lambdaFunctionArn",
+          "lambdaFunctionArn": {
+            "lambdaArn": "arn:aws:lambda:us-east-1:318228906383:function:Action-Research-Lambda",
+            "toolSchemaFile": "action-tools.json"
+          }
+        }
+      ],
       "authorizerType": "AWS_IAM",
       "enableSemanticSearch": false,
       "exceptionLevel": "NONE"
