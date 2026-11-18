@@ -9,4 +9,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-p3-agentcore-assistant = { path = "../../.." }
+# `agentcore deploy` installs wheels only (--only-binary :all:), so it cannot build assistant/
+# from source. Build the wheel first, from assistant/: `uv build --wheel` (dist/ is gitignored).
+# Rebuild before every deploy, or the runtime ships the code from the last build.
+p3-agentcore-assistant = { path = "../../../dist/p3_agentcore_assistant-0.1.0-py3-none-any.whl" }
