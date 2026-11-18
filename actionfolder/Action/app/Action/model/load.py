@@ -1,19 +1,21 @@
+from config import AWS_REGION, BEDROCK_MAX_TOKENS, BEDROCK_MODEL_ID
 from langchain_aws import ChatBedrockConverse
-from config import AWS_REGION, BEDROCK_MODEL_ID, BEDROCK_MAX_TOKENS
+
 
 def _load_model() -> ChatBedrockConverse:
-    """ Build Bedrock chat mmodel from environment variables. """
+    """Build Bedrock chat mmodel from environment variables."""
 
     return ChatBedrockConverse(
         model=BEDROCK_MODEL_ID,
         region_name=AWS_REGION,
         max_tokens=BEDROCK_MAX_TOKENS,
-        temperature=0.0
+        temperature=0.0,
     )
 
 
 # lazily load the model so it is only ever instantiated when it is used
-_MODEL : ChatBedrockConverse | None = None
+_MODEL: ChatBedrockConverse | None = None
+
 
 def get_model() -> ChatBedrockConverse:
 

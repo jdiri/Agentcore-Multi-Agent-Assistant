@@ -1,22 +1,21 @@
-
 # src/services/research_service.py
 
 from common.contracts.base import ToolStatus
 from common.contracts.research import (
+    Advisor,
     Fund,
     FundReturns,
-    Holding,
-    Advisor,
     GetFundInput,
-    GetFundReturnsInput,
-    SearchFundsInput,
-    GetMyHoldingsInput,
-    GetMyAdvisorInput,
     GetFundOutput,
+    GetFundReturnsInput,
     GetFundReturnsOutput,
-    SearchFundsOutput,
-    GetMyHoldingsOutput,
+    GetMyAdvisorInput,
     GetMyAdvisorOutput,
+    GetMyHoldingsInput,
+    GetMyHoldingsOutput,
+    Holding,
+    SearchFundsInput,
+    SearchFundsOutput,
 )
 
 
@@ -25,57 +24,38 @@ class ResearchService:
         self.repository = repository
 
     # 1. Retrieve a fund
-    def get_fund(
-        self, request: GetFundInput
-    ) -> GetFundOutput:
+    def get_fund(self, request: GetFundInput) -> GetFundOutput:
 
         item = self.repository.get_fund(request.ticker)
 
         if item is None:
-            return GetFundOutput(
-                status=ToolStatus.NOT_FOUND
-            )
+            return GetFundOutput(status=ToolStatus.NOT_FOUND)
 
-        return GetFundOutput(
-            status=ToolStatus.OK,
-            data=Fund.model_validate(item)
-        )
+        return GetFundOutput(status=ToolStatus.OK, data=Fund.model_validate(item))
 
     # 2. Retrieve quarterly returns
-    def get_fund_returns(
-        self, request: GetFundReturnsInput
-    ) -> GetFundReturnsOutput:
+    def get_fund_returns(self, request: GetFundReturnsInput) -> GetFundReturnsOutput:
 
         item = self.repository.get_fund(request.ticker)
 
         if item is None:
-            return GetFundReturnsOutput(
-                status=ToolStatus.NOT_FOUND
-            )
+            return GetFundReturnsOutput(status=ToolStatus.NOT_FOUND)
 
         fund = Fund.model_validate(item)
 
         # Ensure quarters are ordered chronologically.
-        returns = sorted(
-            fund.quarterly_returns,
-            key=lambda entry: entry.quarter
-        )
+        returns = sorted(fund.quarterly_returns, key=lambda entry: entry.quarter)
 
         if request.quarters is not None:
-            returns = returns[-request.quarters:]
+            returns = returns[-request.quarters :]
 
         return GetFundReturnsOutput(
             status=ToolStatus.OK,
-            data=FundReturns(
-                ticker=fund.ticker,
-                quarterly_returns=tuple(returns)
-            )
+            data=FundReturns(ticker=fund.ticker, quarterly_returns=tuple(returns)),
         )
 
     # 3. Search funds using named filters
-    def search_funds(
-        self, request: SearchFundsInput
-    ) -> SearchFundsOutput:
+    def search_funds(self, request: SearchFundsInput) -> SearchFundsOutput:
 
         records = self.repository.list_funds()
         funds = [Fund.model_validate(r) for r in records]
@@ -84,7 +64,6 @@ class ResearchService:
 
         # These filters must all match (AND logic).
         for fund in funds:
-
             if request.asset_class is not None:
                 if fund.asset_class.casefold() != request.asset_class.casefold():
                     continue
@@ -120,18 +99,10 @@ class ResearchService:
 
         filtered.sort(key=lambda fund: fund.ticker)
 
-        return SearchFundsOutput(
-            status=ToolStatus.OK,
-            data=filtered
-        )
+        return SearchFundsOutput(status=ToolStatus.OK, data=filtered)
 
     # 4. Retrieve signed-in user's holdings
-    def get_my_holdings(
-        self,
-        request: GetMyHoldingsInput,
-        *,
-        user_id: str
-    ) -> GetMyHoldingsOutput:
+    def get_my_holdings(self, request: GetMyHoldingsInput, *, user_id: str) -> GetMyHoldingsOutput:
 
         # user_id MUST come from verified backend identity.
         if not user_id:
@@ -140,28 +111,22 @@ class ResearchService:
         records = self.repository.get_holdings_by_user(user_id)
 
         holdings = [
-            Holding.model_validate({
-                "account_type": record["account_type"],
-                "ticker": record["ticker"],
-                "shares": record["shares"],
-                "market_value_usd": record["market_value_usd"],
-                "as_of": record["as_of"],
-            })
+            Holding.model_validate(
+                {
+                    "account_type": record["account_type"],
+                    "ticker": record["ticker"],
+                    "shares": record["shares"],
+                    "market_value_usd": record["market_value_usd"],
+                    "as_of": record["as_of"],
+                }
+            )
             for record in records
         ]
 
-        return GetMyHoldingsOutput(
-            status=ToolStatus.OK,
-            data=holdings
-        )
+        return GetMyHoldingsOutput(status=ToolStatus.OK, data=holdings)
 
     # 5. Retrieve signed-in user's advisor
-    def get_my_advisor(
-        self,
-        request: GetMyAdvisorInput,
-        *,
-        user_id: str
-    ) -> GetMyAdvisorOutput:
+    def get_my_advisor(self, request: GetMyAdvisorInput, *, user_id: str) -> GetMyAdvisorOutput:
 
         if not user_id:
             raise ValueError("Verified user identity is required")
@@ -169,24 +134,22 @@ class ResearchService:
         user = self.repository.get_user(user_id)
 
         if user is None:
-            return GetMyAdvisorOutput(
-                status=ToolStatus.NOT_FOUND
-            )
+            return GetMyAdvisorOutput(status=ToolStatus.NOT_FOUND)
 
         advisor_id = user["advisor_id"]
 
         advisor = self.repository.get_advisor(advisor_id)
 
         if advisor is None:
-            return GetMyAdvisorOutput(
-                status=ToolStatus.NOT_FOUND
-            )
+            return GetMyAdvisorOutput(status=ToolStatus.NOT_FOUND)
 
         return GetMyAdvisorOutput(
             status=ToolStatus.OK,
-            data=Advisor.model_validate({
-                "advisor_id": advisor["advisor_id"],
-                "name": advisor["name"],
-                "email": advisor["email"],
-            })
+            data=Advisor.model_validate(
+                {
+                    "advisor_id": advisor["advisor_id"],
+                    "name": advisor["name"],
+                    "email": advisor["email"],
+                }
+            ),
         )

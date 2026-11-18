@@ -5,7 +5,6 @@ from common.contracts.research import (
     GetFundReturnsInput,
     GetFundReturnsOutput,
 )
-
 from tools.get_fund_local import get_fund_local
 
 
@@ -14,15 +13,11 @@ def get_fund_returns_local(
 ) -> GetFundReturnsOutput:
 
     # Reuse existing fund retrieval
-    fund_result = get_fund_local(
-        GetFundInput(ticker=request.ticker)
-    )
+    fund_result = get_fund_local(GetFundInput(ticker=request.ticker))
 
     # Fund doesn't exist
     if fund_result.status == ToolStatus.NOT_FOUND:
-        return GetFundReturnsOutput(
-            status=ToolStatus.NOT_FOUND
-        )
+        return GetFundReturnsOutput(status=ToolStatus.NOT_FOUND)
 
     # Propagate retrieval errors
     if fund_result.status == ToolStatus.ERROR:
@@ -38,7 +33,7 @@ def get_fund_returns_local(
 
     # Select the most recent N quarters
     if request.quarters is not None:
-        returns = returns[-request.quarters:]
+        returns = returns[-request.quarters :]
 
     return GetFundReturnsOutput(
         status=ToolStatus.OK,

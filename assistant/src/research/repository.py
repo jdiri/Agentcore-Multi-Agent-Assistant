@@ -1,4 +1,3 @@
-
 import boto3
 from boto3.dynamodb.conditions import Key
 
@@ -14,9 +13,7 @@ class ResearchRepository:
 
     # 1. Get a fund by its ticker
     def get_fund(self, ticker: str) -> dict | None:
-        response = self.funds_table.get_item(
-            Key={"ticker": ticker}
-        )
+        response = self.funds_table.get_item(Key={"ticker": ticker})
 
         return response.get("Item")
 
@@ -29,18 +26,14 @@ class ResearchRepository:
 
         # Handle DynamoDB pagination
         while "LastEvaluatedKey" in response:
-            response = self.funds_table.scan(
-                ExclusiveStartKey=response["LastEvaluatedKey"]
-            )
+            response = self.funds_table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
             items.extend(response["Items"])
 
         return items
 
     # 3. Get a user by ID
     def get_user(self, user_id: str) -> dict | None:
-        response = self.users_table.get_item(
-            Key={"user_id": user_id}
-        )
+        response = self.users_table.get_item(Key={"user_id": user_id})
 
         return response.get("Item")
 
@@ -48,16 +41,14 @@ class ResearchRepository:
     def get_holdings_by_user(self, user_id: str) -> list[dict]:
         items = []
 
-        response = self.holdings_table.query(
-            KeyConditionExpression=Key("user_id").eq(user_id)
-        )
+        response = self.holdings_table.query(KeyConditionExpression=Key("user_id").eq(user_id))
 
         items.extend(response["Items"])
 
         while "LastEvaluatedKey" in response:
             response = self.holdings_table.query(
                 KeyConditionExpression=Key("user_id").eq(user_id),
-                ExclusiveStartKey=response["LastEvaluatedKey"]
+                ExclusiveStartKey=response["LastEvaluatedKey"],
             )
             items.extend(response["Items"])
 
@@ -65,8 +56,6 @@ class ResearchRepository:
 
     # 5. Get an advisor by ID
     def get_advisor(self, advisor_id: str) -> dict | None:
-        response = self.advisors_table.get_item(
-            Key={"advisor_id": advisor_id}
-        )
+        response = self.advisors_table.get_item(Key={"advisor_id": advisor_id})
 
         return response.get("Item")

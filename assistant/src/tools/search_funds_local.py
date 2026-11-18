@@ -26,12 +26,8 @@ def search_funds_local(
         "min_expense_ratio": ("expense_ratio_pct", "min"),
         "min_nav_usd": ("nav_usd", "min"),
         "max_nav_usd": ("nav_usd", "max"),
-        "min_initial_investment_usd": (
-            "minimum_initial_investment_usd", "min"
-        ),
-        "max_initial_investment_usd": (
-            "minimum_initial_investment_usd", "max"
-        ),
+        "min_initial_investment_usd": ("minimum_initial_investment_usd", "min"),
+        "max_initial_investment_usd": ("minimum_initial_investment_usd", "max"),
         "inception_date_from": ("inception_date", "min"),
         "inception_date_to": ("inception_date", "max"),
         "nav_as_of_from": ("nav_as_of", "min"),
@@ -40,7 +36,6 @@ def search_funds_local(
 
     def matches(fund: Fund) -> bool:
         for key, value in filters.items():
-
             if key == "name_contains":
                 if value.casefold() not in fund.name.casefold():
                     return False

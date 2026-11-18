@@ -1,4 +1,3 @@
-
 import logging
 
 from pydantic import ValidationError
@@ -8,11 +7,9 @@ from common.contracts.research import (
     GetFundReturnsInput,
     SearchFundsInput,
 )
-
 from research.repository import ResearchRepository
 from research.service import ResearchService
 from tools.research_tools import ResearchTools
-
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +38,7 @@ def lambda_handler(event, context):
     full_name = metadata.get("bedrockAgentCoreToolName", "")
 
     if "___" not in full_name:
-        return {
-            "error": "Missing or invalid Gateway tool name"
-        }
+        return {"error": "Missing or invalid Gateway tool name"}
 
     tool_name = full_name.rsplit("___", 1)[-1]
 
@@ -55,24 +50,18 @@ def lambda_handler(event, context):
     }
 
     if tool_name not in allowed_tools:
-        return {
-            "error": "Unsupported tool"
-        }
+        return {"error": "Unsupported tool"}
 
     # 3. Check input format.
     if not isinstance(event, dict):
-        return {
-            "error": "Invalid tool arguments"
-        }
+        return {"error": "Invalid tool arguments"}
 
     try:
         # 4. Validate and dispatch the request.
         if tool_name == "get_fund":
             request = GetFundInput.model_validate(event)
 
-            return get_tools().get_fund(
-                ticker=request.ticker
-            )
+            return get_tools().get_fund(ticker=request.ticker)
 
         if tool_name == "get_fund_returns":
             request = GetFundReturnsInput.model_validate(event)
@@ -85,24 +74,18 @@ def lambda_handler(event, context):
         if tool_name == "search_funds":
             request = SearchFundsInput.model_validate(event)
 
-            return get_tools().search_funds(
-                **request.model_dump(exclude_none=True)
-            )
+            return get_tools().search_funds(**request.model_dump(exclude_none=True))
 
     except ValidationError:
         logger.warning(
             "Invalid arguments for tool %s",
             tool_name,
         )
-        return {
-            "error": "Invalid tool arguments"
-        }
+        return {"error": "Invalid tool arguments"}
 
     except Exception:
         logger.exception(
             "Research tool failed: %s",
             tool_name,
         )
-        return {
-            "error": "Research tool temporarily unavailable"
-        }
+        return {"error": "Research tool temporarily unavailable"}

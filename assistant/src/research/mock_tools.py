@@ -1,17 +1,3 @@
-from langchain_core.tools import tool
-
-from common.contracts.research import GetFundInput
-
-
-@tool(args_schema=GetFundInput)
-async def get_fund(ticker: str) -> str:
-    """Retrieve a fund by its ticker symbol."""
-
-    return (
-        f"Mock research result for {ticker}. "
-        "No verified fund details are available in this mock."
-    )
-
 from typing import Any
 
 from langchain_core.tools import tool
@@ -19,9 +5,9 @@ from langchain_core.tools import tool
 from common.contracts.research import (
     GetFundInput,
     GetFundReturnsInput,
-    SearchFundsInput,
-    GetMyHoldingsInput,
     GetMyAdvisorInput,
+    GetMyHoldingsInput,
+    SearchFundsInput,
 )
 
 
@@ -39,10 +25,7 @@ async def get_fund_returns(
 ) -> str:
     """Retrieve quarterly fund returns by ticker, optionally limited to the last N quarters."""
 
-    return (
-        f"MOCK: No verified return data for {ticker}. "
-        f"Requested quarters: {quarters}."
-    )
+    return f"MOCK: No verified return data for {ticker}. Requested quarters: {quarters}."
 
 
 @tool(args_schema=SearchFundsInput)

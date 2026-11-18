@@ -1,14 +1,12 @@
-
 # src/tools/research_tools.py
 
 from common.contracts.research import (
     GetFundInput,
     GetFundReturnsInput,
-    SearchFundsInput,
-    GetMyHoldingsInput,
     GetMyAdvisorInput,
+    GetMyHoldingsInput,
+    SearchFundsInput,
 )
-
 from research.service import ResearchService
 
 
