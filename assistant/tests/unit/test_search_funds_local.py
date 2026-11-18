@@ -9,9 +9,7 @@ from tools.search_funds_local import search_funds_local
 
 
 def test_search_index_funds():
-    result = search_funds_local(
-        SearchFundsInput(management="Index")
-    )
+    result = search_funds_local(SearchFundsInput(management="Index"))
 
     assert result.status == ToolStatus.OK
     assert len(result.data) > 0
@@ -34,9 +32,7 @@ def test_search_multiple_filters():
 
 
 def test_search_no_matches():
-    result = search_funds_local(
-        SearchFundsInput(name_contains="NONEXISTENT FUND")
-    )
+    result = search_funds_local(SearchFundsInput(name_contains="NONEXISTENT FUND"))
 
     assert result.status == ToolStatus.OK
     assert result.data == []

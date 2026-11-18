@@ -11,15 +11,12 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from typing_extensions import TypedDict
 
-from research.prompt import RESEARCH_SYSTEM_PROMPT
 from research.mock_tools import (
     get_fund,
     get_fund_returns,
     search_funds,
-    get_my_holdings,
-    get_my_advisor,
 )
-
+from research.prompt import RESEARCH_SYSTEM_PROMPT
 
 MAX_TOOL_ROUNDS = 3
 

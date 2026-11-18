@@ -1,4 +1,3 @@
-
 from research.repository import ResearchRepository
 
 repo = ResearchRepository()

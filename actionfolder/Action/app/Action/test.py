@@ -1,7 +1,7 @@
-from langchain_core.tools import tool
 from langchain.agents import create_agent
-from model.load import get_model
 from langchain.messages import HumanMessage
+from langchain_core.tools import tool
+from model.load import get_model
 
 
 @tool
@@ -15,20 +15,23 @@ model = get_model()
 graph = create_agent(
     model=model,
     tools=[test_action],
-    system_prompt="You are a test Action Agent. Use the test_action tool when requested."
+    system_prompt="You are a test Action Agent. Use the test_action tool when requested.",
 )
 
 
 async def main():
-    result = await graph.ainvoke({
-        "messages": [
-            HumanMessage(content="Use the test_action tool with the message Hello.")
-        ]
-    })
+    result = await graph.ainvoke(
+        {
+            "messages": [
+                HumanMessage(content="Use the test_action tool with the message Hello.")
+            ]
+        }
+    )
 
     print(result["messages"][-1].content)
 
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(main())

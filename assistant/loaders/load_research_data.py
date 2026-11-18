@@ -1,4 +1,3 @@
-
 import json
 from decimal import Decimal
 from pathlib import Path
@@ -7,13 +6,7 @@ import boto3
 
 from common.contracts.research import Fund
 
-
-DATA_DIR = (
-    Path(__file__).resolve().parents[1]
-    / "Project3-Corpus-Documents"
-    / "p3-corpus"
-    / "data"
-)
+DATA_DIR = Path(__file__).resolve().parents[1] / "Project3-Corpus-Documents" / "p3-corpus" / "data"
 
 TABLE_FILES = {
     "p3-funds": "funds.json",
@@ -38,9 +31,7 @@ def prepare_item(table_name: str, record: dict) -> dict:
         Fund.model_validate(item)
 
     if table_name == "p3-holdings":
-        item["holding_key"] = (
-            f"{item['account_number']}#{item['ticker']}"
-        )
+        item["holding_key"] = f"{item['account_number']}#{item['ticker']}"
 
     return item
 

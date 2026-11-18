@@ -1,25 +1,21 @@
-
 import os
-import json
+from collections.abc import Generator
+
 import boto3
 import httpx
-
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
-from mcp.client.streamable_http import streamable_http_client
-from mcp import ClientSession
-from typing import Generator
-
 from config import AWS_REGION
-
+from mcp import ClientSession
+from mcp.client.streamable_http import streamable_http_client
 
 SIGNING_SERVICE = "bedrock-agentcore"
 UNSIGNABLE = {"connection", "host", "content-length"}
-TIMEOUT_SECONDS = 60.0 # probably change
+TIMEOUT_SECONDS = 60.0  # probably change
 
 
 class SigV4HttpxAuth(httpx.Auth):
-    """ configuring how to sign each outbound request """
+    """configuring how to sign each outbound request"""
 
     requires_request_body = True
 
@@ -28,16 +24,14 @@ class SigV4HttpxAuth(httpx.Auth):
 
         if credentials is None:
             raise RuntimeError(
-               "No AWS credentials. Locally, set AWS_PROFILE. Deployed, the execution role failed to resolve."
+                "No AWS credentials. Locally, set AWS_PROFILE. Deployed, the execution role failed to resolve."
             )
 
-        self._signer = SigV4Auth(
-            credentials,
-            SIGNING_SERVICE,
-            region
-        )
+        self._signer = SigV4Auth(credentials, SIGNING_SERVICE, region)
 
-    def auth_flow(self, request: httpx.Request) -> Generator[httpx.Request, httpx.Response, None]:
+    def auth_flow(
+        self, request: httpx.Request
+    ) -> Generator[httpx.Request, httpx.Response, None]:
         aws_request = AWSRequest(
             method=request.method,
             url=str(request.url),
@@ -46,7 +40,7 @@ class SigV4HttpxAuth(httpx.Auth):
                 key: value
                 for key, value in request.headers.items()
                 if key.lower() not in UNSIGNABLE
-            }
+            },
         )
 
         self._signer.add_auth(aws_request)
@@ -58,13 +52,12 @@ class SigV4HttpxAuth(httpx.Auth):
 
 
 def gateway_url() -> str:
-    """ go out and find the Gateway URL from env
-    
-        The agentcore CLI will inject env vars
-            AGENTCORE_GATEWAY_<NAME>_URL
-            AGENTCORE_GATEWAY_<NAME>_AUTH_TYPE
-    """
+    """go out and find the Gateway URL from env
 
+    The agentcore CLI will inject env vars
+        AGENTCORE_GATEWAY_<NAME>_URL
+        AGENTCORE_GATEWAY_<NAME>_AUTH_TYPE
+    """
 
     for key, value in os.environ.items():
         if key.startswith("AGENTCORE_GATEWAY_") and key.endswith("_URL"):
@@ -78,29 +71,20 @@ async def call_gateway_tool(tool_name: str, arguments: dict) -> dict:
 
     url = gateway_url()
 
-    async with httpx.AsyncClient(
-        timeout=TIMEOUT_SECONDS,
-        auth=SigV4HttpxAuth(AWS_REGION),
-        follow_redirects=True
-    ) as http_client:
+    async with (
+        httpx.AsyncClient(
+            timeout=TIMEOUT_SECONDS,
+            auth=SigV4HttpxAuth(AWS_REGION),
+            follow_redirects=True,
+        ) as http_client,
+        streamable_http_client(url, http_client=http_client) as (read, write),
+        ClientSession(read, write) as session,
+    ):
+        await session.initialize()
 
-        async with streamable_http_client(
-            url,
-            http_client=http_client
-        ) as (read, write):
+        result = await session.call_tool(tool_name, arguments=arguments)
 
-            async with ClientSession(read, write) as session:
-                await session.initialize()
+        if result.is_error:
+            raise RuntimeError(f"Gateway tool '{tool_name}' failed: {result.content}")
 
-                result = await session.call_tool(
-                    tool_name,
-                    arguments=arguments
-                )
-
-                if result.is_error:
-                    raise RuntimeError(
-                        f"Gateway tool '{tool_name}' failed: {result.content}"
-                    )
-
-
-                return result.structured_content
+        return result.structured_content

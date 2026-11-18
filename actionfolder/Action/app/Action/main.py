@@ -1,14 +1,13 @@
-from langchain.agents import create_agent
-from opentelemetry.instrumentation.langchain import LangchainInstrumentor
-from a2a.utils import new_task
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
 from a2a.server.tasks import TaskUpdater
 from a2a.types import AgentCapabilities, AgentCard, AgentInterface, AgentSkill, Part
+from a2a.utils import new_task
 from bedrock_agentcore.runtime import serve_a2a
+from langchain.agents import create_agent
 from model.load import get_model
-from tools import draft_email, send_approved_email, create_ticket
-
+from opentelemetry.instrumentation.langchain import LangchainInstrumentor
+from tools import create_ticket, draft_email, send_approved_email
 
 LangchainInstrumentor().instrument()
 
@@ -17,7 +16,6 @@ LangchainInstrumentor().instrument()
 # def add_numbers(a: int, b: int) -> int:
 #     """Return the sum of two numbers."""
 #     return a + b
-
 
 
 tools = [draft_email, send_approved_email, create_ticket]
@@ -33,12 +31,7 @@ Always verify approval before sending an email.
 
 model = get_model()
 
-graph = create_agent(
-    model=model,
-    tools=tools,
-    system_prompt=SYSTEM_PROMPT
-)
-
+graph = create_agent(model=model, tools=tools, system_prompt=SYSTEM_PROMPT)
 
 
 # Executor updates a given task rather than returning some results. Caller needs to look for those updates.
