@@ -3,12 +3,14 @@
 Run from assistant/ with AWS credentials configured:
     $env:P3_KB_ID = "<kb id>"; python evals/calibrate_threshold.py
 
-Writes docs/results/threshold-calibration-YYYYMMDD.md. It recommends a threshold;
-copying it into the Support agent's code is a separate, reviewed change.
+Writes docs/results/threshold-calibration-YYYYMMDD.md with the scores, the threshold (a floor:
+see support.calibration) and retrieve latency. Copying the threshold into the Support agent's
+code is a separate, reviewed change.
 """
 
 import json
 import sys
+import time
 from datetime import date
 from pathlib import Path
 
@@ -19,6 +21,7 @@ from support.calibration import (  # noqa: E402
     ANSWERABLE,
     GAP,
     choose_threshold,
+    latency_summary,
     render_markdown,
     score_question,
 )
@@ -38,40 +41,60 @@ def main() -> int:
 
     client = boto3.client("bedrock-agent-runtime")
     kb_id = knowledge_base_id()
+    latencies_ms: list[float] = []
+
+    def timed_retrieve(question: str):
+        start = time.perf_counter()
+        hits = retrieve(client, kb_id, question)
+        latencies_ms.append((time.perf_counter() - start) * 1000)
+        return hits
 
     rows = []
     for item in load_jsonl(SUPPORT_QA):
         kind = GAP if item["case"] == "gap" else ANSWERABLE
-        hits = retrieve(client, kb_id, item["question"])
         rows.append(
             score_question(
                 id=item["id"],
                 question=item["question"],
                 kind=kind,
                 case=item["case"],
-                hits=hits,
+                hits=timed_retrieve(item["question"]),
                 sources=item["sources"],
             )
         )
-        print(f"{item['id']}: {rows[-1].top_score:.4f}")
+        print(f"{item['id']}: {rows[-1].top_score:.4f}  ({latencies_ms[-1]:.0f} ms)")
     for item in load_jsonl(GAP_QUESTIONS):
-        hits = retrieve(client, kb_id, item["question"])
         rows.append(
             score_question(
-                id=item["id"], question=item["question"], kind=GAP, case=item["kind"], hits=hits
+                id=item["id"],
+                question=item["question"],
+                kind=GAP,
+                case=item["kind"],
+                hits=timed_retrieve(item["question"]),
             )
         )
-        print(f"{item['id']}: {rows[-1].top_score:.4f}")
+        print(f"{item['id']}: {rows[-1].top_score:.4f}  ({latencies_ms[-1]:.0f} ms)")
 
     threshold = choose_threshold(rows)
     stamp = date.today().strftime("%Y%m%d")
     RESULTS.mkdir(parents=True, exist_ok=True)
     md = RESULTS / f"threshold-calibration-{stamp}.md"
-    md.write_text(render_markdown(rows, threshold, run=date.today().isoformat()), encoding="utf-8")
+    md.write_text(
+        render_markdown(
+            rows,
+            threshold,
+            run=date.today().isoformat(),
+            latencies_ms=latencies_ms,
+        ),
+        encoding="utf-8",
+    )
 
+    stats = latency_summary(latencies_ms)
     print(f"\nthreshold {threshold.value:.3f} (separated: {threshold.separated})")
-    if threshold.answerable_below:
-        print(f"answerable below threshold: {', '.join(threshold.answerable_below)}")
+    if threshold.gaps_above:
+        print(f"gaps left to the model: {', '.join(threshold.gaps_above)}")
+    median, p95, worst = stats["median"], stats["p95"], stats["max"]
+    print(f"latency ms: median {median:.0f}, p95 {p95:.0f}, max {worst:.0f}")
     print(f"evidence: {md.relative_to(ASSISTANT)}")
     return 0
 

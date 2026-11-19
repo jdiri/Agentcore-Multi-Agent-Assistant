@@ -8,8 +8,12 @@
    actually contain it. A claim whose quote is in no chunk is dropped. The model never writes a
    source, and its excerpt number is only a hint.
 
-Gap decision (interim, until the relevance threshold is calibrated): the model says whether the
-chunks cover the question. Not covered, no results, or no usable claim -> `gap_report`.
+Gap decision, in two layers:
+- Code: no results, or a top retrieval score below `RELEVANCE_THRESHOLD`, gives `gap_report`
+  without calling the model. The threshold is a floor calibrated so that no answerable question
+  falls below it (evidence: docs/results/threshold-calibration-20261119.md).
+- Model: above the floor, the model says whether the chunks cover the question. Not covered, or
+  no claim with a quote found in the retrieved text, also gives `gap_report`.
 
 Never logs the question, chunk text or model output: only task IDs, counts and error types.
 """
@@ -38,6 +42,10 @@ log = logging.getLogger(__name__)
 DEFAULT_MODEL_ID = "deepseek.v3.2"
 TOOL_FAILED_DETAIL = "I couldn't search the policy documents just now. Please try again shortly."
 MIN_QUOTE_WORDS = 3  # shorter quotes ("the fee") match too much to prove anything
+# Floor for the top retrieval score, from docs/results/threshold-calibration-20261119.md: just
+# under the lowest answerable score (0.9409). Only valid for the current KB and embedding model;
+# re-run evals/calibrate_threshold.py after changing either.
+RELEVANCE_THRESHOLD = 0.940
 
 _SUBSECTION = re.compile(r"^(\d+(?:\.\d+)+) ")
 
@@ -139,7 +147,12 @@ def cite_claims(answer: SupportAnswer, chunks: Sequence[RetrievedChunk]) -> list
     return cited
 
 
-def build_support_handler(retriever: Retriever, answerer: Answerer) -> SupportHandler:
+def build_support_handler(
+    retriever: Retriever,
+    answerer: Answerer,
+    *,
+    relevance_threshold: float = RELEVANCE_THRESHOLD,
+) -> SupportHandler:
     """The Support handler, with retrieval and the model passed in (fakes in unit tests)."""
 
     async def handle(task: SpecialistTask) -> SpecialistReport:
@@ -147,7 +160,17 @@ def build_support_handler(retriever: Retriever, answerer: Answerer) -> SupportHa
             raise ValueError(f"Support handler got a {task.specialist} task")
         try:
             chunks = await retriever(task.instruction)
-            answer = await answerer(task.instruction, chunks) if chunks else None
+            top_score = max((c.score for c in chunks), default=None)
+            if top_score is None or top_score < relevance_threshold:
+                log.info(
+                    "support gap task_id=%s results=%d top_score=%s below_threshold=%.3f",
+                    task.task_id,
+                    len(chunks),
+                    "none" if top_score is None else f"{top_score:.4f}",
+                    relevance_threshold,
+                )
+                return gap_report(task, tool_rounds_used=1)
+            answer = await answerer(task.instruction, chunks)
         except Exception as exc:
             log.error("support failed task_id=%s error=%s", task.task_id, type(exc).__name__)
             return SpecialistReport(
@@ -158,9 +181,11 @@ def build_support_handler(retriever: Retriever, answerer: Answerer) -> SupportHa
                 tool_rounds_used=1,
             )
 
-        claims = cite_claims(answer, chunks) if answer and answer.covered else []
+        claims = cite_claims(answer, chunks) if answer.covered else []
         if not claims:
-            log.info("support gap task_id=%s results=%d", task.task_id, len(chunks))
+            log.info(
+                "support gap task_id=%s results=%d model_not_covered", task.task_id, len(chunks)
+            )
             return gap_report(task, tool_rounds_used=1)
 
         log.info("support answered task_id=%s claims=%d", task.task_id, len(claims))

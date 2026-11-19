@@ -7,6 +7,7 @@ import pytest
 from common.contracts import ReportStatus, Specialist, SpecialistTask
 from common.contracts.support import SUPPORT_GAP_REPLY
 from support.agent import (
+    RELEVANCE_THRESHOLD,
     TOOL_FAILED_DETAIL,
     DraftClaim,
     SupportAnswer,
@@ -19,12 +20,13 @@ from support.retrieval import RetrievalError, RetrievedChunk
 
 KB_DIR = Path(__file__).resolve().parents[2] / "Project3-Corpus-Documents/p3-corpus/knowledge-base"
 QUESTION = "How long does an incoming ACATS transfer take?"
+ABOVE_FLOOR = 0.95  # above RELEVANCE_THRESHOLD, so the model runs
 
 
 @pytest.fixture(scope="module")
 def chunks() -> dict[str, RetrievedChunk]:
     return {
-        c.name: RetrievedChunk(c.text, c.document, c.section, f"id-{c.name}", 0.9)
+        c.name: RetrievedChunk(c.text, c.document, c.section, f"id-{c.name}", ABOVE_FLOOR)
         for c in split_corpus(KB_DIR)
         if not c.document.superseded
     }
@@ -164,6 +166,47 @@ def test_no_results_gives_the_gap_reply_without_calling_the_model():
     report, seen = run([], SupportAnswer(covered=True, claims=[claim("x")]))
     assert report.detail == SUPPORT_GAP_REPLY
     assert "answerer_chunks" not in seen
+
+
+def test_threshold_is_the_calibrated_floor():
+    assert RELEVANCE_THRESHOLD == 0.940
+    assert RELEVANCE_THRESHOLD <= 0.9409  # lowest answerable score in the 2026-11-19 evidence
+
+
+def score(chunk: RetrievedChunk, value: float) -> RetrievedChunk:
+    return RetrievedChunk(chunk.text, chunk.document, chunk.section, chunk.chunk_id, value)
+
+
+def test_top_score_below_floor_gives_gap_reply_without_calling_the_model(chunks, caplog):
+    hits = [score(chunks[S4], 0.9399), score(chunks[WIRES], 0.91)]
+    with caplog.at_level(logging.INFO):
+        report, seen = run(hits, SupportAnswer(covered=True, claims=[claim("x")]))
+    assert report.status is ReportStatus.NO_INFORMATION
+    assert report.detail == SUPPORT_GAP_REPLY
+    assert report.tool_rounds_used == 1
+    assert "answerer_chunks" not in seen
+    assert "results=2 top_score=0.9399 below_threshold=0.940" in caplog.text
+
+
+def test_top_score_at_floor_reaches_the_model(chunks):
+    hits = [score(chunks[S4], RELEVANCE_THRESHOLD)]
+    answer = SupportAnswer(covered=True, claims=[claim("It takes 3 to 6 business days.")])
+    report, seen = run(hits, answer)
+    assert report.status is ReportStatus.COMPLETED
+    assert seen["answerer_chunks"] == hits
+
+
+def test_floor_uses_the_best_score_whatever_the_order(chunks):
+    hits = [score(chunks[WIRES], 0.91), score(chunks[S4], 0.95)]
+    answer = SupportAnswer(covered=True, claims=[claim("It takes 3 to 6 business days.", 2)])
+    report, _ = run(hits, answer)
+    assert report.status is ReportStatus.COMPLETED
+
+
+def test_above_floor_the_model_can_still_say_not_covered(chunks):
+    report, seen = run([score(chunks[S4], 0.96)], SupportAnswer(covered=False))
+    assert report.detail == SUPPORT_GAP_REPLY
+    assert "answerer_chunks" in seen
 
 
 def test_covered_but_no_usable_claims_is_a_gap(chunks):
