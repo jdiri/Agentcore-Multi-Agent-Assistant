@@ -9,6 +9,7 @@ from typing import Annotated, Any, Self
 
 from pydantic import Field, model_validator
 
+from ..masking import mask_sensitive
 from .base import StrictContract
 from .routing import (
     Finding,
@@ -162,3 +163,59 @@ def gap_report(task: SpecialistTask, *, tool_rounds_used: int = 0) -> Specialist
         detail=SUPPORT_GAP_REPLY,
         tool_rounds_used=tool_rounds_used,
     )
+
+
+class GapReason(StrEnum):
+    """Why Support gave the gap reply."""
+
+    NO_RESULTS = "no_results"  # retrieval returned nothing
+    BELOW_THRESHOLD = "below_threshold"  # top score under the relevance floor
+    NOT_COVERED = "not_covered"  # the model said the excerpts don't answer it
+    NO_SUPPORTED_CLAIM = "no_supported_claim"  # no claim's quote was found in the retrieved text
+
+
+class GapLogEntry(StrictContract):
+    """One question the documents could not answer, logged so the documents can be improved.
+
+    Build it with `for_task`, which masks the question. An unmasked question is refused.
+    """
+
+    task_id: NonBlank
+    session_id: NonBlank
+    turn_id: NonBlank
+    reason: GapReason
+    question: NonBlank  # masked with common.masking.mask_sensitive
+    result_count: int = Field(ge=0)
+    top_score: float | None = Field(default=None, ge=0)  # None only when there were no results
+    threshold: float = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if mask_sensitive(self.question) != self.question:
+            raise ValueError("question is not masked")
+        if (self.top_score is None) != (self.reason is GapReason.NO_RESULTS):
+            raise ValueError("top_score is missing exactly when there were no results")
+        if (self.result_count == 0) != (self.reason is GapReason.NO_RESULTS):
+            raise ValueError("result_count is 0 exactly when there were no results")
+        return self
+
+    @classmethod
+    def for_task(
+        cls,
+        task: SpecialistTask,
+        *,
+        reason: GapReason,
+        result_count: int,
+        top_score: float | None,
+        threshold: float,
+    ) -> "GapLogEntry":
+        return cls(
+            task_id=task.task_id,
+            session_id=task.session_id,
+            turn_id=task.turn_id,
+            reason=reason,
+            question=mask_sensitive(task.instruction),
+            result_count=result_count,
+            top_score=top_score,
+            threshold=threshold,
+        )

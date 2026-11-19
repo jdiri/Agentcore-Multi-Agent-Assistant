@@ -15,6 +15,8 @@ from common.contracts.support import (
     SUPPORT_GAP_REPLY,
     CitedClaim,
     DocumentType,
+    GapLogEntry,
+    GapReason,
     KBCitation,
     KBDocument,
     gap_report,
@@ -436,3 +438,63 @@ def test_coordinator_shows_gap_reply_exactly_without_sources():
         delegations=(Delegation(specialist=Specialist.SUPPORT, task="Answer it."),)
     )
     assert _render_reply(decision, [gap_report(task())]) == SUPPORT_GAP_REPLY
+
+
+# 10. Gap log entries: always masked, consistent with the reason.
+
+
+def gap_entry(**changes) -> GapLogEntry:
+    fields = {
+        "task_id": "task-1",
+        "session_id": "session-1",
+        "turn_id": "turn-1",
+        "reason": GapReason.BELOW_THRESHOLD,
+        "question": "How do I change my IRA beneficiary?",
+        "result_count": 5,
+        "top_score": 0.93,
+        "threshold": 0.94,
+        **changes,
+    }
+    return GapLogEntry(**fields)
+
+
+def test_gap_entry_for_task_masks_the_question():
+    t = task().model_copy(
+        update={"instruction": "Beneficiary for acct 7793381504, SSN 123-45-6789?"}
+    )
+    entry = GapLogEntry.for_task(
+        t, reason=GapReason.NOT_COVERED, result_count=5, top_score=0.95, threshold=0.94
+    )
+    assert entry.question == "Beneficiary for acct ******1504, SSN [SSN]?"
+    assert (entry.task_id, entry.session_id, entry.turn_id) == ("task-1", "session-1", "turn-1")
+    assert "7793381504" not in entry.model_dump_json()
+
+
+def test_gap_entry_refuses_an_unmasked_question():
+    with pytest.raises(ValidationError, match="not masked"):
+        gap_entry(question="my account 7793381504")
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"reason": GapReason.NO_RESULTS},  # results and a score, but says none
+        {"top_score": None},  # results but no score
+        {"result_count": 0},  # a score but no results
+    ],
+)
+def test_gap_entry_reason_must_match_results(changes):
+    with pytest.raises(ValidationError):
+        gap_entry(**changes)
+
+
+def test_gap_entry_with_no_results():
+    entry = gap_entry(reason=GapReason.NO_RESULTS, result_count=0, top_score=None)
+    assert entry.top_score is None
+
+
+def test_gap_entry_is_frozen_and_strict():
+    with pytest.raises(ValidationError):
+        gap_entry(extra_field="x")
+    with pytest.raises(ValidationError):
+        gap_entry().question = "changed"

@@ -7,6 +7,7 @@ from support.calibration import (
     GAP,
     ScoredQuestion,
     choose_threshold,
+    latency_summary,
     matches_source,
     render_markdown,
     score_question,
@@ -41,32 +42,38 @@ def test_separated_scores_use_the_midpoint():
     )
     assert threshold.separated is True
     assert threshold.value == 0.5
-    assert threshold.answerable_below == ()
+    assert threshold.gaps_above == ()
 
 
-def test_overlap_puts_threshold_just_above_highest_gap():
+def test_overlap_puts_floor_at_lowest_answerable():
     threshold = choose_threshold(
         [
             row("A1", ANSWERABLE, 0.80),
-            row("A2", ANSWERABLE, 0.45),
+            row("A2", ANSWERABLE, 0.4567),
             row("G1", GAP, 0.50),
             row("G2", GAP, 0.20),
+            row("G3", GAP, 0.4567),
         ]
     )
     assert threshold.separated is False
-    assert threshold.value == 0.501
-    assert threshold.answerable_below == ("A2",)
+    assert threshold.value == 0.456
+    assert threshold.gaps_above == ("G1", "G3")
 
 
-def test_threshold_is_always_strictly_above_every_gap_score():
-    for gap in [0.5, 0.5004, 0.4999, 0.123456]:
-        threshold = choose_threshold([row("A", ANSWERABLE, gap), row("G", GAP, gap)])
-        assert threshold.value > gap
+def test_floor_never_refuses_an_answerable_question():
+    for low in [0.5, 0.5004, 0.4999, 0.123456, 0.9409]:
+        for gap in [low - 0.1, low, low + 0.1]:
+            threshold = choose_threshold(
+                [row("A", ANSWERABLE, low), row("B", ANSWERABLE, 0.99), row("G", GAP, gap)]
+            )
+            assert threshold.value <= low
 
 
-def test_tiny_separation_still_keeps_gaps_below():
+def test_tiny_separation_falls_back_to_floor():
     threshold = choose_threshold([row("A", ANSWERABLE, 0.5004), row("G", GAP, 0.5001)])
-    assert threshold.value > 0.5001
+    assert threshold.separated is True
+    assert threshold.value == 0.5  # midpoint 0.500 is below the gap, so use the floor
+    assert threshold.gaps_above == ("G",)
 
 
 @pytest.mark.parametrize("kind", [ANSWERABLE, GAP])
@@ -127,21 +134,48 @@ def test_score_gap_question_with_no_results():
 # 3. The evidence files.
 
 
-ROWS = [row("A1", ANSWERABLE, 0.8), row("A2", ANSWERABLE, 0.45), row("G1", GAP, 0.5)]
+ROWS = [
+    row("A1", ANSWERABLE, 0.8),
+    row("A2", ANSWERABLE, 0.45),
+    row("G1", GAP, 0.5),
+    row("G2", GAP, 0.3),
+]
 
 
 def test_markdown_states_threshold_and_reason():
     text = render_markdown(ROWS, choose_threshold(ROWS), run="2026-11-12")
-    assert "**Threshold: 0.501**" in text
-    assert "The groups overlap" in text and "A2" in text
+    assert "**Threshold: 0.450**" in text
+    assert "The groups overlap" in text and "coverage check: G1." in text
     assert "_Synthetic data." in text
-    assert "| Correct answer/gap decisions at this threshold | 2 / 3 |" in text
+    assert "| Answerable refused by the threshold | 0 / 2 |" in text
+    assert "| Gap questions caught by the threshold | 1 / 2 |" in text
+    assert "| Gap questions left to the model's coverage check | 1 / 2 |" in text
 
 
 def test_markdown_rows_sorted_by_score_with_decisions():
     text = render_markdown(ROWS, choose_threshold(ROWS), run="2026-11-12")
-    table = [line for line in text.splitlines() if line.startswith(("| A1 ", "| A2 ", "| G1 "))]
-    assert [line.split(" | ")[0] for line in table] == ["| A1", "| G1", "| A2"]
+    ids = ("| A1 ", "| A2 ", "| G1 ", "| G2 ")
+    table = [line for line in text.splitlines() if line.startswith(ids)]
+    assert [line.split(" | ")[0] for line in table] == ["| A1", "| G1", "| A2", "| G2"]
     assert "| answer | yes |" in table[0]
-    assert "| gap reply | yes |" in table[1]
-    assert "| gap reply | **no** |" in table[2]
+    assert "| passes; model checks | model |" in table[1]
+    assert "| answer | yes |" in table[2]
+    assert "| gap reply | yes |" in table[3]
+
+
+def test_markdown_omits_latency_by_default():
+    assert "latency" not in render_markdown(ROWS, choose_threshold(ROWS), run="r")
+
+
+def test_markdown_reports_latency():
+    text = render_markdown(
+        ROWS, choose_threshold(ROWS), run="r", latencies_ms=[300.0, 100.0, 200.0, 900.0]
+    )
+    assert "over 4 calls (budget < 1 s): median 250 ms, p95 900 ms, max 900 ms." in text
+
+
+def test_latency_summary():
+    assert latency_summary([5, 1, 3]) == {"median": 3, "p95": 5, "max": 5}
+    assert latency_summary(list(range(1, 21))) == {"median": 10.5, "p95": 19, "max": 20}
+    with pytest.raises(ValueError):
+        latency_summary([])
