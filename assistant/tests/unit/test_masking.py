@@ -1,3 +1,4 @@
+import json
 import logging
 import uuid
 
@@ -68,6 +69,55 @@ def test_dashed_ids_are_not_masked():
     assert mask_sensitive(f"task_id={task_id}") == f"task_id={task_id}"
     random_id = str(uuid.uuid4())
     assert mask_sensitive(random_id) == random_id
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '"top_score":0.9254872672092927,"threshold":0.94',  # the score masked in CloudWatch
+        "score 0.123456789",  # a 9-digit fraction is not an SSN
+        "12345678.25 units",  # an 8-digit whole part of a decimal
+        "1234567890.123456789",
+        "-0.12345678",
+    ],
+)
+def test_decimal_numbers_untouched(text):
+    assert mask_sensitive(text) == text
+
+
+@pytest.mark.parametrize(
+    ("text", "masked"),
+    [
+        ("my account 7793381504.", "my account ******1504."),
+        ("SSN 123456789.", "SSN [SSN]."),
+        ("Accounts 6029376336. 5960695108.", "Accounts ******6336. ******5108."),
+    ],
+)
+def test_sentence_full_stop_still_masked(text, masked):
+    assert mask_sensitive(text) == masked
+
+
+def test_gap_log_entry_json_keeps_its_score():
+    from common.contracts import Specialist, SpecialistTask
+    from common.contracts.support import GapLogEntry, GapReason
+
+    task = SpecialistTask(
+        task_id="t",
+        session_id="s",
+        turn_id="u",
+        specialist=Specialist.SUPPORT,
+        instruction="beneficiary for 7793381504?",
+    )
+    entry = GapLogEntry.for_task(
+        task,
+        reason=GapReason.BELOW_THRESHOLD,
+        result_count=5,
+        top_score=0.9254872672092927,
+        threshold=0.94,
+    )
+    line = mask_sensitive(entry.model_dump_json())  # what the log filter does to the line
+    assert json.loads(line)["top_score"] == pytest.approx(0.9254872672092927, abs=1e-15)
+    assert "******1504" in line and "7793381504" not in line
 
 
 def test_masking_is_idempotent():

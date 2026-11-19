@@ -7,8 +7,9 @@ recording it, and install `MaskingFilter` on log handlers as a backstop.
 - Account-like: a run of 8 to 17 digits keeps only its last 4: `7793381504` -> `******1504`.
 
 It errs toward masking: a 10-digit phone number with no separators is masked too. Dates
-(`2026-11-19`), amounts (`$40,000`) and digit runs that are part of a dashed ID such as a UUID are
-left alone. Known limit: an account number split by spaces or dashes (`7793 3815 04`) is not
+(`2026-11-19`), amounts (`$40,000`), decimal numbers such as retrieval scores
+(`0.9254872672092927`) and digit runs that are part of a dashed ID such as a UUID are left
+alone. Known limit: an account number split by spaces or dashes (`7793 3815 04`) is not
 recognised. Masking is not a reason to log client text: prefer logging IDs and error types.
 """
 
@@ -19,8 +20,12 @@ SSN_MASK = "[SSN]"
 KEEP_LAST = 4
 
 # Not touching another digit or a dash, so parts of dates, dashed IDs and longer runs don't match.
-_SSN = re.compile(r"(?<![\d-])(?:\d{3}([- ])\d{2}\1\d{4}|\d{9})(?![\d-])")
-_ACCOUNT = re.compile(r"(?<![\d-])\d{8,17}(?![\d-])")
+# Not part of a decimal number either (`0.9254872672092927`, `12345678.5`), so scores and amounts
+# in logs survive. A full stop that ends a sentence (`account 7793381504.`) is still masked.
+_NOT_AFTER = r"(?<![\d-])(?<!\d\.)"
+_NOT_BEFORE = r"(?![\d-])(?!\.\d)"
+_SSN = re.compile(rf"{_NOT_AFTER}(?:\d{{3}}([- ])\d{{2}}\1\d{{4}}|\d{{9}}){_NOT_BEFORE}")
+_ACCOUNT = re.compile(rf"{_NOT_AFTER}\d{{8,17}}{_NOT_BEFORE}")
 
 
 def _mask_account(match: re.Match[str]) -> str:
