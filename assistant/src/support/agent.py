@@ -15,7 +15,8 @@ Gap decision, in two layers:
 - Model: above the floor, the model says whether the chunks cover the question. Not covered, or
   no claim with a quote found in the retrieved text, also gives `gap_report`.
 
-Never logs the question, chunk text or model output: only task IDs, counts and error types.
+Logs only task IDs, counts, scores and error types, never chunk text or model output. The one
+exception is the gap log: each unanswered question is logged, masked, as a `GapLogEntry`.
 """
 
 import asyncio
@@ -33,11 +34,14 @@ from common.contracts import (
     SpecialistReport,
     SpecialistTask,
 )
-from common.contracts.support import CitedClaim, gap_report
+from common.contracts.support import CitedClaim, GapLogEntry, GapReason, gap_report
 
 from .retrieval import RetrievedChunk, knowledge_base_id, retrieve
 
 log = logging.getLogger(__name__)
+# One JSON line per unanswered question (masked), so the documents can be improved (blueprint
+# "The documents don't cover the question"). A separate logger so it can be routed on its own.
+gap_log = logging.getLogger("support.gaps")
 
 DEFAULT_MODEL_ID = "deepseek.v3.2"
 TOOL_FAILED_DETAIL = "I couldn't search the policy documents just now. Please try again shortly."
@@ -147,6 +151,28 @@ def cite_claims(answer: SupportAnswer, chunks: Sequence[RetrievedChunk]) -> list
     return cited
 
 
+def _log_gap(
+    task: SpecialistTask,
+    reason: GapReason,
+    result_count: int,
+    top_score: float | None,
+    threshold: float,
+) -> None:
+    """Record an unanswered question (masked) on `support.gaps`. Never blocks the gap reply."""
+    try:
+        entry = GapLogEntry.for_task(
+            task,
+            reason=reason,
+            result_count=result_count,
+            top_score=top_score,
+            threshold=threshold,
+        )
+    except Exception as exc:  # the error could quote the question, so log only its type
+        log.error("gap log failed task_id=%s error=%s", task.task_id, type(exc).__name__)
+        return
+    gap_log.info("support gap %s", entry.model_dump_json())
+
+
 def build_support_handler(
     retriever: Retriever,
     answerer: Answerer,
@@ -161,16 +187,8 @@ def build_support_handler(
         try:
             chunks = await retriever(task.instruction)
             top_score = max((c.score for c in chunks), default=None)
-            if top_score is None or top_score < relevance_threshold:
-                log.info(
-                    "support gap task_id=%s results=%d top_score=%s below_threshold=%.3f",
-                    task.task_id,
-                    len(chunks),
-                    "none" if top_score is None else f"{top_score:.4f}",
-                    relevance_threshold,
-                )
-                return gap_report(task, tool_rounds_used=1)
-            answer = await answerer(task.instruction, chunks)
+            relevant = top_score is not None and top_score >= relevance_threshold
+            answer = await answerer(task.instruction, chunks) if relevant else None
         except Exception as exc:
             log.error("support failed task_id=%s error=%s", task.task_id, type(exc).__name__)
             return SpecialistReport(
@@ -181,12 +199,19 @@ def build_support_handler(
                 tool_rounds_used=1,
             )
 
-        claims = cite_claims(answer, chunks) if answer.covered else []
-        if not claims:
-            log.info(
-                "support gap task_id=%s results=%d model_not_covered", task.task_id, len(chunks)
-            )
+        def gap(reason: GapReason) -> SpecialistReport:
+            _log_gap(task, reason, len(chunks), top_score, relevance_threshold)
             return gap_report(task, tool_rounds_used=1)
+
+        if top_score is None:
+            return gap(GapReason.NO_RESULTS)
+        if answer is None:
+            return gap(GapReason.BELOW_THRESHOLD)
+        if not answer.covered:
+            return gap(GapReason.NOT_COVERED)
+        claims = cite_claims(answer, chunks)
+        if not claims:
+            return gap(GapReason.NO_SUPPORTED_CLAIM)
 
         log.info("support answered task_id=%s claims=%d", task.task_id, len(claims))
         return SpecialistReport(

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from pathlib import Path
 
@@ -185,7 +186,13 @@ def test_top_score_below_floor_gives_gap_reply_without_calling_the_model(chunks,
     assert report.detail == SUPPORT_GAP_REPLY
     assert report.tool_rounds_used == 1
     assert "answerer_chunks" not in seen
-    assert "results=2 top_score=0.9399 below_threshold=0.940" in caplog.text
+    [entry] = gap_entries(caplog)
+    assert (entry["reason"], entry["result_count"], entry["top_score"]) == (
+        "below_threshold",
+        2,
+        0.9399,
+    )
+    assert entry["threshold"] == RELEVANCE_THRESHOLD
 
 
 def test_top_score_at_floor_reaches_the_model(chunks):
@@ -244,6 +251,67 @@ def test_logs_never_contain_the_question_or_answer(chunks, caplog):
     assert "12345678" not in caplog.text
     assert "business days" not in caplog.text
     assert "task_id=t1" in caplog.text
+
+
+# 4. Every gap is logged once, masked, with why it was a gap.
+
+
+def gap_entries(caplog) -> list[dict]:
+    prefix = "support gap "
+    return [
+        json.loads(r.getMessage()[len(prefix) :])
+        for r in caplog.records
+        if r.name == "support.gaps" and r.getMessage().startswith(prefix)
+    ]
+
+
+@pytest.mark.parametrize(
+    ("retrieved", "answer", "reason"),
+    [
+        ([], None, "no_results"),
+        ([("S4", 0.93)], None, "below_threshold"),
+        ([("S4", 0.95)], SupportAnswer(covered=False), "not_covered"),
+        (
+            [("S4", 0.95)],
+            SupportAnswer(covered=True, claims=[claim("x", quote="not in the policy text")]),
+            "no_supported_claim",
+        ),
+    ],
+)
+def test_each_gap_path_logs_one_entry_with_its_reason(chunks, caplog, retrieved, answer, reason):
+    hits = [score(chunks[S4], s) for _, s in retrieved]
+    with caplog.at_level(logging.INFO):
+        report, _ = run(hits, answer)
+    assert report.detail == SUPPORT_GAP_REPLY
+    [entry] = gap_entries(caplog)
+    assert entry["reason"] == reason
+    assert (entry["task_id"], entry["session_id"], entry["turn_id"]) == ("t1", "s1", "u1")
+    assert entry["question"] == QUESTION
+    assert entry["result_count"] == len(hits)
+
+
+def test_gap_log_masks_the_question(chunks, caplog):
+    question = "Change beneficiary on account 7793381504? SSN 123-45-6789"
+    with caplog.at_level(logging.INFO):
+        run([score(chunks[S4], 0.9)], None, instruction=question)
+    [entry] = gap_entries(caplog)
+    assert entry["question"] == "Change beneficiary on account ******1504? SSN [SSN]"
+    assert "7793381504" not in caplog.text and "123-45-6789" not in caplog.text
+
+
+def test_answered_question_is_not_gap_logged(chunks, caplog):
+    answer = SupportAnswer(covered=True, claims=[claim("It takes 3 to 6 business days.")])
+    with caplog.at_level(logging.INFO):
+        report, _ = run([chunks[S4]], answer)
+    assert report.status is ReportStatus.COMPLETED
+    assert gap_entries(caplog) == []
+
+
+def test_tool_failure_is_not_gap_logged(caplog):
+    with caplog.at_level(logging.INFO):
+        report, _ = run(RetrievalError("boom"), None)
+    assert report.status is ReportStatus.TOOL_FAILED
+    assert gap_entries(caplog) == []
 
 
 def test_rejects_tasks_for_other_specialists():
