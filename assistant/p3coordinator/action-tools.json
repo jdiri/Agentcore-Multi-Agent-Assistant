@@ -5,12 +5,13 @@
     "inputSchema": {
       "type": "object",
       "properties": {
+        "action" : {"type": "string"},
         "to_role": {"type": "string"},
         "subject": {"type": "string"},
         "recipient_email": {"type": "string"},
         "body": {"type": "string"}
       },
-      "required": ["to_role", "subject", "recipient_email", "body"]
+      "required": ["action", "to_role", "subject", "recipient_email", "body"]
     }
   },
   {
@@ -19,9 +20,10 @@
     "inputSchema": {
       "type": "object",
       "properties": {
+        "action" : {"type": "string"},
         "request_id": {"type": "string"}
       },
-      "required": ["request_id"]
+      "required": ["action","request_id"]
     }
   },
   {
@@ -30,11 +32,12 @@
     "inputSchema": {
       "type": "object",
       "properties": {
+        "action" : {"type": "string"},
         "summary": {"type": "string"},
         "description": {"type": "string"},
         "category": {"type": "string"}
       },
-      "required": ["summary", "description", "category"]
+      "required": ["action","summary", "description", "category"]
     }
   }
 ]
