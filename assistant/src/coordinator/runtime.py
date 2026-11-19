@@ -10,15 +10,50 @@ import uuid
 from functools import cache
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp, RequestContext
+from bedrock_agentcore.runtime.app import RequestContextFormatter
 from starlette.responses import JSONResponse
 
 from common.contracts import Specialist
+from common.masking import MaskingFilter
 from coordinator.graph import build_coordinator
 from coordinator.stubs import STUB_SPECIALISTS, stub_router
 
-logger = logging.getLogger(__name__)
+# Named explicitly: run as a script (stub mode) __name__ is "__main__", outside APP_LOGGERS.
+logger = logging.getLogger("coordinator.runtime")
+
+# Our packages log at INFO (Support's gap log is INFO). Libraries keep the WARNING default.
+APP_LOGGERS = ("coordinator", "support", "common")
+AGENTCORE_LOGGER = "bedrock_agentcore.app"
+_HANDLER_NAME = "p3-masked-json"
+
+
+def configure_logging() -> None:
+    """Send our logs to stdout (CloudWatch in the runtime) as JSON, masked. Safe to call twice.
+
+    One root handler with AgentCore's JSON formatter (adds requestId and sessionId) and
+    `MaskingFilter`, so every line from our packages is masked even if a caller forgets.
+    AgentCore's own logger has its own handler: it gets the filter too, and stops propagating
+    so its lines are not written twice. Masking covers the message, not exception text, so
+    keep logging error types only.
+    """
+    root = logging.getLogger()
+    if not any(h.get_name() == _HANDLER_NAME for h in root.handlers):
+        handler = logging.StreamHandler()
+        handler.set_name(_HANDLER_NAME)
+        handler.setFormatter(RequestContextFormatter())
+        handler.addFilter(MaskingFilter())
+        root.addHandler(handler)
+    for name in APP_LOGGERS:
+        logging.getLogger(name).setLevel(logging.INFO)
+    agentcore = logging.getLogger(AGENTCORE_LOGGER)
+    agentcore.propagate = False
+    for handler in agentcore.handlers:
+        if not any(isinstance(f, MaskingFilter) for f in handler.filters):
+            handler.addFilter(MaskingFilter())
+
 
 app = BedrockAgentCoreApp()
+configure_logging()
 
 
 def _specialists():

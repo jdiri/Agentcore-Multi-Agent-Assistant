@@ -1,3 +1,4 @@
+import json
 import logging
 
 import pytest
@@ -5,7 +6,8 @@ from starlette.testclient import TestClient
 
 import support.agent
 from common.contracts import Finding, ReportStatus, Specialist, SpecialistReport
-from coordinator.runtime import app, get_coordinator
+from common.masking import MaskingFilter
+from coordinator.runtime import APP_LOGGERS, app, configure_logging, get_coordinator
 
 SESSION_HEADER = "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id"
 
@@ -73,3 +75,39 @@ def test_support_uses_the_knowledge_base_when_kb_id_is_set(client, monkeypatch, 
     assert body["reply"] == "Fees are listed.\n\nSources: [Fee Schedule FAQ, 2026-01]"
     assert "support handler: knowledge base" in caplog.text
     assert "KB-TEST" not in caplog.text
+
+
+# Logging: our INFO lines reach the runtime's stdout as JSON, masked.
+
+
+def masked_handler() -> logging.Handler:
+    [handler] = [h for h in logging.getLogger().handlers if h.get_name() == "p3-masked-json"]
+    return handler
+
+
+def test_logging_is_configured_once():
+    configure_logging()
+    configure_logging()
+    assert len([h for h in logging.getLogger().handlers if h.get_name() == "p3-masked-json"]) == 1
+    for name in APP_LOGGERS:
+        assert logging.getLogger(name).getEffectiveLevel() == logging.INFO
+    agentcore = logging.getLogger("bedrock_agentcore.app")
+    assert agentcore.propagate is False
+    for handler in agentcore.handlers:
+        assert sum(isinstance(f, MaskingFilter) for f in handler.filters) == 1
+
+
+def test_libraries_stay_quiet():
+    assert logging.getLogger("botocore").getEffectiveLevel() >= logging.WARNING
+
+
+def test_gap_log_line_reaches_the_handler_masked_as_json():
+    handler = masked_handler()
+    record = logging.getLogger("support.gaps").makeRecord(
+        "support.gaps", logging.INFO, __file__, 1, "support gap %s", ("acct 7793381504",), None
+    )
+    assert logging.getLogger("support.gaps").isEnabledFor(logging.INFO)
+    assert handler.filter(record)
+    line = json.loads(handler.format(record))
+    assert line["message"] == "support gap acct ******1504"
+    assert (line["level"], line["logger"]) == ("INFO", "support.gaps")
