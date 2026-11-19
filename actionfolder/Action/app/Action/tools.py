@@ -1,13 +1,15 @@
-from gateway import call_gateway_tool
+
 from langchain.tools import tool
+
+from gateway import call_gateway_tool
 
 
 @tool
 async def draft_email(
     to_role: str,
     subject: str,
-    recipient_email: str,  # just added
-    body: str,
+    recipient_email: str, #just added
+    body: str
 ) -> dict:
     """
     Create an email draft for a specified recipient role.
@@ -17,11 +19,12 @@ async def draft_email(
     return await call_gateway_tool(
         "ActionLambda___draft_email",
         {
+            "action": "draft_email",
             "to_role": to_role,
             "subject": subject,
-            "recipient_email": recipient_email,
-            "body": body,
-        },
+            "recipient_email": recipient_email, #
+            "body": body
+        }
     )
 
 
@@ -33,21 +36,30 @@ async def send_approved_email(request_id: str) -> dict:
     """
 
     return await call_gateway_tool(
-        "ActionLambda___send_approved_email", {"request_id": request_id}
+        "ActionLambda___send_approved_email",
+        {
+            "action": "send_approved_email",
+            "request_id": request_id
+        }
     )
 
 
 @tool
-async def create_ticket(summary: str, description: str, category: str) -> dict:
+async def create_ticket(
+    summary: str,
+    description: str,
+    category: str
+) -> dict:
     """
     Create a support ticket through the authorized ticket creation process.
     """
-    print("CREATE_TICKET TOOL STARTED")
-    print("Calling Gateway: ActionLambda___create_ticket")
-    result = await call_gateway_tool(
+    
+    return await call_gateway_tool(
         "ActionLambda___create_ticket",
-        {"summary": summary, "description": description, "category": category},
+        {
+            "action": "create_ticket",
+            "summary": summary,
+            "description": description,
+            "category": category
+        }
     )
-
-    print("GATEWAY RESULT:", result)
-    return result
