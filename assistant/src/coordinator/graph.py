@@ -1,7 +1,8 @@
 """Coordinator graph for Runtime #1: route, run specialists in order, compose the reply.
 
-The Coordinator has no tools and only writes from specialist reports. Task text is not logged
-yet because it can hold client account numbers; add it once the shared masking helper exists.
+The Coordinator has no tools and only writes from specialist reports. Task text is not logged.
+If it ever is, mask it first with `common.masking.mask_sensitive`; the runtime's log handler
+also masks every line as a backstop.
 """
 
 import logging
