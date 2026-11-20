@@ -14,7 +14,7 @@ from bedrock_agentcore.runtime.app import RequestContextFormatter
 from starlette.responses import JSONResponse
 
 from common.contracts import Specialist
-from common.masking import MaskingFilter
+from common.masking import MaskingFilter, mask_sensitive
 from coordinator.graph import build_coordinator
 from coordinator.stubs import STUB_SPECIALISTS, stub_router
 
@@ -87,6 +87,10 @@ async def invoke(payload: dict, context: RequestContext):
     prompt = payload.get("prompt")
     if not isinstance(prompt, str) or not prompt.strip():
         return JSONResponse({"error": "prompt must be a non-empty string"}, status_code=400)
+    # Mask first, before routing, model calls, logs, traces or memory see it. ADOT records every
+    # Bedrock prompt as a `gen_ai.user.message` event, which no log filter of ours can reach, so
+    # the raw number must never get that far. Nothing needs it: tools take no client-ID argument.
+    prompt = mask_sensitive(prompt)
 
     session_id = context.session_id or str(uuid.uuid4())
     turn_id = str(uuid.uuid4())

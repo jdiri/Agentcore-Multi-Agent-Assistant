@@ -111,3 +111,35 @@ def test_gap_log_line_reaches_the_handler_masked_as_json():
     line = json.loads(handler.format(record))
     assert line["message"] == "support gap acct ******1504"
     assert (line["level"], line["logger"]) == ("INFO", "support.gaps")
+
+
+# The client message is masked before anything downstream sees it.
+
+SENSITIVE_PROMPT = "Beneficiary for account 7793381504, SSN 123-45-6789?"
+MASKED_PROMPT = "Beneficiary for account ******1504, SSN [SSN]?"
+
+
+def test_coordinator_only_ever_receives_the_masked_message(client, monkeypatch):
+    seen = {}
+
+    class FakeCoordinator:
+        async def ainvoke(self, state):
+            seen.update(state)
+            return {"reply": "ok", "decision": None}
+
+    monkeypatch.setattr("coordinator.runtime.get_coordinator", lambda: FakeCoordinator())
+    response = client.post("/invocations", json={"prompt": SENSITIVE_PROMPT})
+    assert response.status_code == 200
+    assert seen["message"] == MASKED_PROMPT
+
+
+def test_raw_numbers_reach_no_reply_or_log(client, caplog):
+    with caplog.at_level(logging.DEBUG):
+        body = client.post("/invocations", json={"prompt": SENSITIVE_PROMPT}).json()
+    assert "******1504" in body["reply"]  # the stub specialist echoes its task
+    for text in (body["reply"], caplog.text):
+        assert "7793381504" not in text and "123-45-6789" not in text
+
+
+def test_masking_does_not_turn_a_prompt_blank(client):
+    assert client.post("/invocations", json={"prompt": "123456789"}).status_code == 200
