@@ -5,6 +5,8 @@ Each owner replaces their entry in `STUB_SPECIALISTS` with a real `SpecialistHan
 """
 
 from collections.abc import Mapping
+import asyncio
+from .action_client import ask_action_agent
 
 from common.contracts import (
     Delegation,
@@ -33,8 +35,24 @@ def _stub(specialist: Specialist) -> SpecialistHandler:
     return handle
 
 
+async def action_handler(task: SpecialistTask) -> SpecialistReport:
+    response = await asyncio.to_thread(
+        ask_action_agent, task.instruction
+    )
+
+    return SpecialistReport(
+        task_id=task.task_id,
+        specialist=Specialist.ACTION,
+        status=ReportStatus.COMPLETED,
+        findings=[Finding(claim=response, source="Action Agent")],
+    )
+
+
 STUB_SPECIALISTS: Mapping[Specialist, SpecialistHandler] = {
-    specialist: _stub(specialist) for specialist in Specialist
+    # specialist: _stub(specialist) for specialist in Specialist
+    Specialist.RESEARCH: _stub(Specialist.RESEARCH),
+    Specialist.SUPPORT: _stub(Specialist.SUPPORT),
+    Specialist.ACTION: action_handler,
 }
 
 
