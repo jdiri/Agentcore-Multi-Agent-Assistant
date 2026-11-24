@@ -4,9 +4,8 @@ Each owner replaces their entry in `STUB_SPECIALISTS` with a real `SpecialistHan
 `stub_router` lets the graph run locally with no AWS access.
 """
 
-from collections.abc import Mapping
 import asyncio
-from .action_client import ask_action_agent
+from collections.abc import Mapping
 
 from common.contracts import (
     Delegation,
@@ -18,6 +17,8 @@ from common.contracts import (
     SpecialistTask,
 )
 from coordinator.graph import SpecialistHandler
+
+from .action_client import ask_action_agent
 
 _RESEARCH_WORDS = ("holding", "fund", "balance", "advisor?")
 _ACTION_WORDS = ("ticket", "email", "send", "notify")
