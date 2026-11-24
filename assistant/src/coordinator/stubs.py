@@ -4,6 +4,7 @@ Each owner replaces their entry in `STUB_SPECIALISTS` with a real `SpecialistHan
 `stub_router` lets the graph run locally with no AWS access.
 """
 
+import asyncio
 from collections.abc import Mapping
 
 from common.contracts import (
@@ -16,6 +17,8 @@ from common.contracts import (
     SpecialistTask,
 )
 from coordinator.graph import SpecialistHandler
+
+from .action_client import ask_action_agent
 
 _RESEARCH_WORDS = ("holding", "fund", "balance", "advisor?")
 _ACTION_WORDS = ("ticket", "email", "send", "notify")
@@ -33,8 +36,22 @@ def _stub(specialist: Specialist) -> SpecialistHandler:
     return handle
 
 
+async def action_handler(task: SpecialistTask) -> SpecialistReport:
+    response = await asyncio.to_thread(ask_action_agent, task.instruction)
+
+    return SpecialistReport(
+        task_id=task.task_id,
+        specialist=Specialist.ACTION,
+        status=ReportStatus.COMPLETED,
+        findings=[Finding(claim=response, source="Action Agent")],
+    )
+
+
 STUB_SPECIALISTS: Mapping[Specialist, SpecialistHandler] = {
-    specialist: _stub(specialist) for specialist in Specialist
+    # specialist: _stub(specialist) for specialist in Specialist
+    Specialist.RESEARCH: _stub(Specialist.RESEARCH),
+    Specialist.SUPPORT: _stub(Specialist.SUPPORT),
+    Specialist.ACTION: action_handler,
 }
 
 
