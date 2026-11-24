@@ -37,9 +37,7 @@ def _stub(specialist: Specialist) -> SpecialistHandler:
 
 
 async def action_handler(task: SpecialistTask) -> SpecialistReport:
-    response = await asyncio.to_thread(
-        ask_action_agent, task.instruction
-    )
+    response = await asyncio.to_thread(ask_action_agent, task.instruction)
 
     return SpecialistReport(
         task_id=task.task_id,
